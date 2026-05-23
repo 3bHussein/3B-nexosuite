@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="3B NexoSuite ERP.png" alt="3B NexoSuite Logo" width="900">
+<img src="3B_NexoSuite_ERP.png" alt="3B NexoSuite Logo" width="900">
 
 # 3B NexoSuite ERP
 
