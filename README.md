@@ -16,6 +16,18 @@
 ![Trial](https://img.shields.io/badge/trial-5%20records-orange?style=for-the-badge)
 ![Business Profiles](https://img.shields.io/badge/business%20profiles-4-teal?style=for-the-badge)
 
+<br>
+
+### 🌐 Landing Page / Live Demo
+
+[![View Landing Page](https://img.shields.io/badge/View%20Landing%20Page-3B%20NexoSuite-00A09D?style=for-the-badge)](https://YOUR-GITHUB-USERNAME.github.io/3b-nexosuite/)
+[![Landing Page Source](https://img.shields.io/badge/Landing%20Page%20HTML-source-714B67?style=for-the-badge)](landing-page/index.html)
+
+**Live Demo:** `https://YOUR-GITHUB-USERNAME.github.io/3b-nexosuite/`  
+**Landing Page File:** `landing-page/index.html`
+
+> After publishing with GitHub Pages, replace `YOUR-GITHUB-USERNAME` with your GitHub username.
+
 </div>
 
 ---
@@ -402,6 +414,30 @@ Activate Your 3B NexoSuite License
 
 
 
+---
+
+## Suggested GitHub Pages Setup
+
+To publish the landing page on GitHub Pages:
+
+1. Create a folder named `landing-page`.
+2. Add your landing page file as:
+
+```text
+landing-page/index.html
+```
+
+3. Go to GitHub repository settings.
+4. Open **Pages**.
+5. Select the branch and folder to publish.
+6. Use the generated GitHub Pages link in this README.
+
+Example live link format:
+
+```text
+https://YOUR-GITHUB-USERNAME.github.io/3b-nexosuite/
+```
+
 ## Security Notes
 
 - Keep the owner activation generator private.
@@ -424,7 +460,7 @@ Always keep backups before installing, updating or modifying a live customer sys
 
 <div align="center">
 
-<img src="assets/3b-nexosuite-icon.svg" alt="3B NexoSuite Icon" width="140">
+<img src="3B_NexoSuite_ERP_icon.png" alt="3B NexoSuite Icon" width="140">
 
 ## 3B NexoSuite
 
