@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3B OneSuite ERP | Modular Business, ERP & E-commerce Platform</title>
+  <meta name="description" content="3B OneSuite is a modular ERP and e-commerce platform for automotive, electronics, food, general trading, services, finance, inventory, CRM, procurement and online sales." />
+  <style>
+    :root {
+      --bg: #fbf8fb;
+      --ink: #1f2937;
+      --muted: #667085;
+      --soft: #f4edf4;
+      --card: #ffffff;
+      --line: #eadfeb;
+      --brand: #714b67;
+      --brand-dark: #4b2f44;
+      --accent: #00a09d;
+      --accent-soft: #e9fbfa;
+      --warning: #fff7e8;
+      --warning-line: #ffd596;
+      --shadow: 0 18px 60px rgba(74, 47, 68, 0.12);
+      --radius: 26px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.6;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    .container { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(18px);
+      background: rgba(251, 248, 251, 0.84);
+      border-bottom: 1px solid rgba(234, 223, 235, 0.9);
+    }
+
+    .nav {
+      min-height: 78px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      font-size: 24px;
+      color: var(--brand-dark);
+    }
+
+    .logo-mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--brand), #9f6d93);
+      color: white;
+      box-shadow: 0 12px 28px rgba(113, 75, 103, 0.28);
+      font-size: 16px;
+      letter-spacing: -0.05em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      color: #475467;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .nav-actions { display: flex; align-items: center; gap: 12px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 12px 20px;
+      border-radius: 999px;
+      font-weight: 800;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: 0.25s ease;
+      white-space: nowrap;
+    }
+
+    .btn-primary { background: var(--brand); color: #fff; box-shadow: 0 14px 35px rgba(113, 75, 103, 0.22); }
+    .btn-primary:hover { background: var(--brand-dark); transform: translateY(-2px); }
+    .btn-secondary { background: #fff; color: var(--brand-dark); border-color: var(--line); }
+    .btn-secondary:hover { border-color: var(--brand); transform: translateY(-2px); }
+    .btn-accent { background: var(--accent); color: #fff; box-shadow: 0 14px 35px rgba(0, 160, 157, 0.2); }
+
+    .hero {
+      padding: 86px 0 48px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      width: 680px;
+      height: 680px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(113,75,103,0.16), rgba(113,75,103,0));
+      top: -300px;
+      right: -220px;
+      pointer-events: none;
+    }
+
+    .hero-grid {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1.02fr 0.98fr;
+      gap: 56px;
+      align-items: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 13px;
+      border-radius: 999px;
+      background: #fff;
+      color: var(--brand-dark);
+      border: 1px solid var(--line);
+      font-weight: 900;
+      font-size: 13px;
+      box-shadow: 0 8px 22px rgba(74, 47, 68, 0.06);
+    }
+
+    .eyebrow span {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 6px rgba(0,160,157,0.12);
+    }
+
+    h1 {
+      font-size: clamp(42px, 7vw, 82px);
+      line-height: 0.94;
+      letter-spacing: -0.075em;
+      margin: 22px 0 20px;
+      color: #231f20;
+    }
+
+    .hero p {
+      font-size: 19px;
+      color: var(--muted);
+      max-width: 680px;
+      margin: 0 0 28px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      margin-top: 26px;
+    }
+
+    .trust-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .trust-pill {
+      padding: 9px 13px;
+      border-radius: 999px;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      color: #5f4b5a;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .suite-preview {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 34px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .preview-header {
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(135deg, #fff, var(--soft));
+      border-bottom: 1px solid var(--line);
+    }
+
+    .window-dots { display: flex; gap: 7px; }
+    .window-dots i { width: 11px; height: 11px; border-radius: 999px; background: #d9cbd8; display: block; }
+    .window-title { color: var(--brand-dark); font-weight: 900; font-size: 13px; }
+
+    .dashboard {
+      padding: 22px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .metric {
+      padding: 16px;
+      border-radius: 20px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+    }
+
+    .metric strong { display: block; font-size: 25px; letter-spacing: -0.04em; color: var(--brand-dark); }
+    .metric span { color: var(--muted); font-size: 12px; font-weight: 800; }
+
+    .module-board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .mini-module {
+      min-height: 92px;
+      padding: 15px;
+      border-radius: 20px;
+      background: #fff;
+      border: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: 0.25s ease;
+    }
+
+    .mini-module:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(74, 47, 68, 0.09); }
+    .mini-module b { color: var(--brand-dark); font-size: 14px; }
+    .mini-module small { color: var(--muted); font-weight: 700; }
+    .icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 13px;
+      display: grid;
+      place-items: center;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 1000;
+    }
+
+    section { padding: 72px 0; }
+    .section-head { max-width: 760px; margin-bottom: 32px; }
+    .section-kicker { color: var(--accent); font-weight: 1000; text-transform: uppercase; letter-spacing: 0.12em; font-size: 12px; }
+    h2 { font-size: clamp(32px, 4.5vw, 56px); line-height: 1; letter-spacing: -0.06em; margin: 10px 0 14px; color: #231f20; }
+    .section-head p { color: var(--muted); font-size: 18px; margin: 0; }
+
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .module-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 22px;
+      min-height: 204px;
+      box-shadow: 0 14px 36px rgba(74,47,68,0.05);
+      transition: 0.25s ease;
+    }
+
+    .module-card:hover { transform: translateY(-5px); box-shadow: var(--shadow); }
+    .module-card h3 { margin: 15px 0 8px; color: var(--brand-dark); letter-spacing: -0.03em; font-size: 20px; }
+    .module-card p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .industries {
+      background: #fff;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .industry-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .industry-card {
+      border-radius: 26px;
+      padding: 26px;
+      min-height: 250px;
+      background: linear-gradient(135deg, var(--soft), #fff);
+      border: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .industry-card h3 { margin: 0; color: var(--brand-dark); font-size: 23px; letter-spacing: -0.04em; }
+    .industry-card p { color: var(--muted); margin: 12px 0 0; font-size: 15px; }
+    .industry-card ul { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+    .industry-card li { font-weight: 800; font-size: 13px; color: #594257; }
+
+    .trial-wrap {
+      display: grid;
+      grid-template-columns: 0.94fr 1.06fr;
+      gap: 28px;
+      align-items: center;
+    }
+
+    .trial-panel {
+      background: linear-gradient(135deg, var(--brand-dark), var(--brand));
+      border-radius: 34px;
+      color: #fff;
+      padding: 38px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .trial-panel::after {
+      content: "";
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      right: -70px;
+      bottom: -80px;
+    }
+
+    .trial-panel h2 { color: #fff; margin-top: 0; }
+    .trial-panel p { color: rgba(255,255,255,0.82); font-size: 17px; }
+
+    .limit-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    .limit-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 22px;
+    }
+
+    .limit-card strong { font-size: 36px; letter-spacing: -0.06em; color: var(--brand); display: block; }
+    .limit-card span { color: var(--muted); font-weight: 800; }
+
+    .activation-box {
+      margin-top: 18px;
+      background: var(--warning);
+      border: 1px solid var(--warning-line);
+      color: #7a4a00;
+      border-radius: 22px;
+      padding: 18px;
+      font-weight: 800;
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .price-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      padding: 30px;
+      box-shadow: 0 14px 36px rgba(74,47,68,0.05);
+      display: flex;
+      flex-direction: column;
+      min-height: 430px;
+    }
+
+    .price-card.featured {
+      background: linear-gradient(180deg, #fff, var(--soft));
+      border-color: rgba(113,75,103,0.45);
+      transform: translateY(-12px);
+      box-shadow: var(--shadow);
+    }
+
+    .price-card h3 { font-size: 26px; letter-spacing: -0.05em; margin: 0; color: var(--brand-dark); }
+    .price { font-size: 44px; letter-spacing: -0.07em; font-weight: 1000; margin: 20px 0 6px; color: #231f20; }
+    .price small { font-size: 15px; color: var(--muted); letter-spacing: 0; }
+    .price-card p { color: var(--muted); margin: 0 0 22px; }
+    .price-card ul { padding: 0; list-style: none; display: grid; gap: 11px; margin: 0 0 26px; }
+    .price-card li { font-weight: 800; color: #4b5563; font-size: 14px; }
+    .price-card .btn { margin-top: auto; }
+
+    .cta {
+      padding: 84px 0;
+    }
+
+    .cta-card {
+      border-radius: 38px;
+      background: linear-gradient(135deg, var(--brand-dark), var(--brand) 58%, #9f6d93);
+      color: #fff;
+      padding: 54px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 32px;
+      box-shadow: 0 28px 80px rgba(74, 47, 68, 0.22);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .cta-card h2 { color: #fff; margin: 0 0 14px; }
+    .cta-card p { color: rgba(255,255,255,0.84); margin: 0; font-size: 18px; max-width: 720px; }
+
+    .footer {
+      border-top: 1px solid var(--line);
+      padding: 34px 0;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .footer-flex { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+    @media (max-width: 1000px) {
+      .hero-grid, .trial-wrap, .cta-card { grid-template-columns: 1fr; }
+      .modules-grid, .industry-grid { grid-template-columns: repeat(2, 1fr); }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .price-card.featured { transform: none; }
+      .nav-links { display: none; }
+    }
+
+    @media (max-width: 620px) {
+      .container { width: min(100% - 22px, 1180px); }
+      .hero { padding-top: 48px; }
+      .nav-actions .btn-secondary { display: none; }
+      .metric-row, .module-board, .modules-grid, .industry-grid, .limit-grid { grid-template-columns: 1fr; }
+      .hero-actions { flex-direction: column; align-items: stretch; }
+      .btn { width: 100%; }
+      .trial-panel, .cta-card { padding: 28px; border-radius: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a href="#" class="brand" aria-label="3B OneSuite home">
+        <span class="logo-mark">3B</span>
+        <span>3B OneSuite</span>
+      </a>
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#modules">Apps</a>
+        <a href="#industries">Industries</a>
+        <a href="#trial">Trial</a>
+        <a href="#pricing">Plans</a>
+      </nav>
+      <div class="nav-actions">
+        <a href="#trial" class="btn btn-secondary">View Trial</a>
+        <a href="#contact" class="btn btn-primary">Get Demo</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container hero-grid">
+        <div>
+          <div class="eyebrow"><span></span> Modular ERP + E-commerce Suite</div>
+          <h1>One system to run sales, stock, finance, service and online business.</h1>
+          <p>
+            3B OneSuite gives businesses an integrated platform for website sales, ERP operations, customer portals, inventory, CRM, procurement, accounting, bookings and digital product workflows — built for modern SMEs and growing companies.
+          </p>
+          <div class="hero-actions">
+            <a href="#contact" class="btn btn-primary">Request a Live Demo</a>
+            <a href="#modules" class="btn btn-secondary">Explore Business Apps</a>
+          </div>
+          <div class="trust-row">
+            <span class="trust-pill">ERP Modules</span>
+            <span class="trust-pill">E-commerce Storefront</span>
+            <span class="trust-pill">Customer Portal</span>
+            <span class="trust-pill">Trial Activation Control</span>
+          </div>
+        </div>
+
+        <div class="suite-preview" aria-label="3B OneSuite dashboard preview">
+          <div class="preview-header">
+            <div class="window-dots"><i></i><i></i><i></i></div>
+            <div class="window-title">3B OneSuite Control Center</div>
+          </div>
+          <div class="dashboard">
+            <div class="metric-row">
+              <div class="metric"><strong>24</strong><span>Business Apps</span></div>
+              <div class="metric"><strong>4</strong><span>Industries</span></div>
+              <div class="metric"><strong>1</strong><span>Connected Suite</span></div>
+            </div>
+            <div class="module-board">
+              <div class="mini-module"><span class="icon">$</span><b>Accounting</b><small>Invoices, tax, cash flow</small></div>
+              <div class="mini-module"><span class="icon">↻</span><b>Inventory</b><small>Branches, warehouses, stock</small></div>
+              <div class="mini-module"><span class="icon">☑</span><b>Sales</b><small>Quotes, orders, returns</small></div>
+              <div class="mini-module"><span class="icon">★</span><b>CRM</b><small>Leads, campaigns, pipeline</small></div>
+              <div class="mini-module"><span class="icon">▣</span><b>Storefront</b><small>Products, checkout, portal</small></div>
+              <div class="mini-module"><span class="icon">⚙</span><b>Activation</b><small>Trial code and licensing</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="modules">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-kicker">Business Apps</div>
+          <h2>Choose the modules your customer needs.</h2>
+          <p>Start with online sales, then expand into ERP, service, procurement, finance, reporting and customer self-service without changing systems.</p>
+        </div>
+        <div class="modules-grid">
+          <article class="module-card"><span class="icon">▣</span><h3>Website Sales</h3><p>Products, categories, cart, checkout, bookings, content and website settings.</p></article>
+          <article class="module-card"><span class="icon">$</span><h3>Accounting</h3><p>Invoices, journals, tax, bank, assets, budgets and cash-flow visibility.</p></article>
+          <article class="module-card"><span class="icon">↻</span><h3>Inventory</h3><p>Multi-warehouse stock, transfers, counts, serial tracking and replenishment.</p></article>
+          <article class="module-card"><span class="icon">★</span><h3>CRM Pipeline</h3><p>Leads, opportunities, campaigns, follow-ups, scoring and sales forecasting.</p></article>
+          <article class="module-card"><span class="icon">⚒</span><h3>Service & Projects</h3><p>Job cards, service contracts, warranty claims, technicians and dispatch.</p></article>
+          <article class="module-card"><span class="icon">⇄</span><h3>Procurement</h3><p>Suppliers, purchase orders, RFQs, tenders, comparison and vendor portal.</p></article>
+          <article class="module-card"><span class="icon">◈</span><h3>Customer Portal</h3><p>Customer dashboard, orders, invoices, downloads, documents and requests.</p></article>
+          <article class="module-card"><span class="icon">▤</span><h3>Reporting BI</h3><p>Management dashboards, KPI reports, exports, metrics and executive views.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="industries" class="industries">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-kicker">Industry Ready</div>
+          <h2>Built for multiple business types.</h2>
+          <p>Deploy one platform and select the correct business profile during installation.</p>
+        </div>
+        <div class="industry-grid">
+          <article class="industry-card">
+            <div><h3>Automotive</h3><p>For tools, garage equipment, diagnostic software, service and B2B quotation workflows.</p></div>
+            <ul><li>Diagnostics catalogue</li><li>Remote setup services</li><li>Workshop operations</li></ul>
+          </article>
+          <article class="industry-card">
+            <div><h3>Electronics</h3><p>For mobile shops, accessories, warranties, retail orders and corporate device quotes.</p></div>
+            <ul><li>Device inventory</li><li>Warranty plans</li><li>Bulk quotation</li></ul>
+          </article>
+          <article class="industry-card">
+            <div><h3>Food Industry</h3><p>For packaged food, beverages, catering, wholesale enquiries and procurement.</p></div>
+            <ul><li>Food catalogue</li><li>Catering requests</li><li>Wholesale buyers</li></ul>
+          </article>
+          <article class="industry-card">
+            <div><h3>General Trading</h3><p>For trading companies managing products, suppliers, branches, stock and customers.</p></div>
+            <ul><li>B2B/B2C trading</li><li>Supplier control</li><li>Commercial reports</li></ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="trial">
+      <div class="container trial-wrap">
+        <div class="trial-panel">
+          <div class="section-kicker" style="color:#8ef2ef;">Controlled Trial System</div>
+          <h2>Let customers test first. Activate when they are ready.</h2>
+          <p>
+            3B OneSuite includes a customer-specific activation flow. Each installation generates a unique request code based on the installation identity, domain, database and shop profile. After the trial limit, creation is locked until activation is completed.
+          </p>
+          <a href="#contact" class="btn btn-accent">Ask for Activation Demo</a>
+        </div>
+        <div>
+          <div class="limit-grid">
+            <div class="limit-card"><strong>5</strong><span>Products in trial</span></div>
+            <div class="limit-card"><strong>5</strong><span>Categories in trial</span></div>
+            <div class="limit-card"><strong>5</strong><span>Customers in trial</span></div>
+            <div class="limit-card"><strong>5</strong><span>Orders in trial</span></div>
+          </div>
+          <div class="activation-box">
+            Customer message after trial: Please activate your 3B OneSuite license to continue creating new records.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-kicker">Packages</div>
+          <h2>Simple packages for different customers.</h2>
+          <p>Use these package blocks as sales positioning. Replace pricing with your exact commercial offer.</p>
+        </div>
+        <div class="pricing-grid">
+          <article class="price-card">
+            <h3>Starter Commerce</h3>
+            <div class="price">AED — <small>/ project</small></div>
+            <p>For small businesses that mainly need a website, product catalogue and online orders.</p>
+            <ul>
+              <li>Website storefront</li>
+              <li>Products and categories</li>
+              <li>Cart and checkout</li>
+              <li>Basic CRM and settings</li>
+              <li>Customer portal</li>
+            </ul>
+            <a href="#contact" class="btn btn-secondary">Get Quote</a>
+          </article>
+          <article class="price-card featured">
+            <h3>Business ERP</h3>
+            <div class="price">AED — <small>/ project</small></div>
+            <p>The recommended package for companies that need sales, stock, finance, CRM and reporting.</p>
+            <ul>
+              <li>ERP + e-commerce</li>
+              <li>Accounting and invoices</li>
+              <li>Inventory and warehouses</li>
+              <li>Sales orders and CRM</li>
+              <li>Reports and customer portal</li>
+            </ul>
+            <a href="#contact" class="btn btn-primary">Request Demo</a>
+          </article>
+          <article class="price-card">
+            <h3>Enterprise Suite</h3>
+            <div class="price">Custom <small>/ deployment</small></div>
+            <p>For larger businesses needing advanced workflows, integrations, documents and training.</p>
+            <ul>
+              <li>All major modules</li>
+              <li>API and integrations</li>
+              <li>Document management</li>
+              <li>Mobile/PWA readiness</li>
+              <li>Training and handover</li>
+            </ul>
+            <a href="#contact" class="btn btn-secondary">Discuss Project</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="contact" class="cta">
+      <div class="container">
+        <div class="cta-card">
+          <div>
+            <h2>Ready to run your business from one connected platform?</h2>
+            <p>Promote 3B OneSuite as a modular ERP and e-commerce solution for customers who need sales, stock, finance, service, CRM and online business in one system.</p>
+          </div>
+          <a href="mailto:info@3b.example" class="btn btn-accent">Contact 3B</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-flex">
+      <div>© 2026 3B OneSuite. All rights reserved.</div>
+      <div>Modular ERP • E-commerce • CRM • Inventory • Accounting</div>
+    </div>
+  </footer>
+</body>
+</html>
