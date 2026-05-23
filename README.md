@@ -20,13 +20,11 @@
 
 ### 🌐 Landing Page / Live Demo
 
-[![View Landing Page](https://img.shields.io/badge/View%20Landing%20Page-3B%20NexoSuite-00A09D?style=for-the-badge)](https://YOUR-GITHUB-USERNAME.github.io/3b-nexosuite/)
+[![View Landing Page](https://img.shields.io/badge/View%20Landing%20Page-3B%20NexoSuite-00A09D?style=for-the-badge)](landing-page/index.html)
 [![Landing Page Source](https://img.shields.io/badge/Landing%20Page%20HTML-source-714B67?style=for-the-badge)](landing-page/index.html)
 
-**Live Demo:** `https://YOUR-GITHUB-USERNAME.github.io/3b-nexosuite/`  
-**Landing Page File:** `landing-page/index.html`
+**Landing Page:** [`landing-page/index.html`](landing-page/index.html)
 
-> After publishing with GitHub Pages, replace `YOUR-GITHUB-USERNAME` with your GitHub username.
 
 </div>
 
@@ -351,7 +349,7 @@ intl
 
 ---
 
-## Suggested Sales Positioning
+## Sales Positioning
 
 Use this text in a website, proposal or brochure:
 
@@ -359,7 +357,7 @@ Use this text in a website, proposal or brochure:
 
 ---
 
-## Suggested Hero Section
+## Hero Section
 
 ```text
 3B NexoSuite ERP
@@ -371,7 +369,7 @@ Manage products, customers, orders, inventory, accounting, CRM, procurement and 
 
 ---
 
-## Suggested CTA Text
+## CTA Text
 
 ```text
 Request a Live Demo
@@ -387,9 +385,7 @@ Activate Your 3B NexoSuite License
 
 ---
 
-
-
-### Brand Owner Placeholder
+### Brand Owner
 
 **3B**
 
@@ -413,30 +409,7 @@ Activate Your 3B NexoSuite License
 | Border Line | `#EADFEB` |
 
 
-
 ---
-
-## Suggested GitHub Pages Setup
-
-To publish the landing page on GitHub Pages:
-
-1. Create a folder named `landing-page`.
-2. Add your landing page file as:
-
-```text
-landing-page/index.html
-```
-
-3. Go to GitHub repository settings.
-4. Open **Pages**.
-5. Select the branch and folder to publish.
-6. Use the generated GitHub Pages link in this README.
-
-Example live link format:
-
-```text
-https://YOUR-GITHUB-USERNAME.github.io/3b-nexosuite/
-```
 
 ## Security Notes
 
@@ -460,7 +433,7 @@ Always keep backups before installing, updating or modifying a live customer sys
 
 <div align="center">
 
-<img src="3B_NexoSuite_ERP_icon.png" alt="3B NexoSuite Icon" width="140">
+<img src="assets/3b-nexosuite-icon.svg" alt="3B NexoSuite Icon" width="140">
 
 ## 3B NexoSuite
 
