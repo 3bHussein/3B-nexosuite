@@ -433,7 +433,7 @@ Always keep backups before installing, updating or modifying a live customer sys
 
 <div align="center">
 
-<img src="assets/3b-nexosuite-icon.svg" alt="3B NexoSuite Icon" width="140">
+<img src="3B_NexoSuite_ERP_icon.png" alt="3B NexoSuite Icon" width="140">
 
 ## 3B NexoSuite
 
