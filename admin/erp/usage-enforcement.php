@@ -1,0 +1,19 @@
+<?php
+$pageTitle='Usage Enforcement';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('usage_enforcement');
+$pdo=getDB();$companies=$pdo->query('SELECT id,company_code,company_name FROM '.table('companies').' WHERE status="active" ORDER BY company_name')->fetchAll();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    if(($_POST['action']??'')==='run'){$result=enforceTenantUsageLimits($pdo,(int)$_POST['company_id']);flash('success','Usage check completed. New logs: '.$result['created'].'; violations: '.count($result['violations']));}
+    elseif(($_POST['action']??'')==='resolve'){$pdo->prepare('UPDATE '.table('saas_usage_enforcement_logs').' SET status="resolved",resolved_at=NOW() WHERE id=?')->execute([(int)$_POST['id']]);flash('success','Enforcement log resolved.');}
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'usage-enforcement']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/usage-enforcement.php');
+}
+$logs=$pdo->query('SELECT l.*,c.company_name FROM '.table('saas_usage_enforcement_logs').' l LEFT JOIN '.table('companies').' c ON c.id=l.company_id ORDER BY FIELD(l.status,"open","resolved"),l.created_at DESC LIMIT 200')->fetchAll();
+$history=$pdo->query('SELECT us.*,c.company_name FROM '.table('tenant_usage_snapshots').' us LEFT JOIN '.table('companies').' c ON c.id=us.company_id ORDER BY us.snapshot_date DESC,us.created_at DESC LIMIT 100')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Tenant Limits</div><h2 class="h4 mb-1">Usage Enforcement</h2><p class="text-secondary mb-0">Compare tenant usage against plan limits and log enforcement actions.</p></div></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><input type="hidden" name="action" value="run"><h2 class="h5 mb-3">Run Usage Check</h2><select class="form-select mb-3" name="company_id"><?php foreach($companies as $c): ?><option value="<?php echo (int)$c['id']; ?>"><?php echo esc($c['company_code'].' · '.$c['company_name']); ?></option><?php endforeach; ?></select><button class="btn btn-brand w-100">Run Check</button></form><div class="table-wrap table-responsive mt-4"><h2 class="h6 mb-3">Usage Snapshots</h2><table class="table table-sm"><tbody><?php foreach($history as $h): ?><tr><td><strong><?php echo esc($h['company_name']); ?></strong><div class="small text-secondary"><?php echo esc($h['snapshot_date']); ?> · Users <?php echo (int)$h['user_count']; ?> · Products <?php echo (int)$h['product_count']; ?></div></td></tr><?php endforeach; ?></tbody></table></div></div><div class="col-xl-8"><div class="table-wrap table-responsive"><table class="table align-middle"><thead><tr><th>Log</th><th>Tenant</th><th>Metric</th><th>Usage</th><th>Status</th><th></th></tr></thead><tbody><?php foreach($logs as $l): ?><tr><td><strong><?php echo esc($l['enforcement_number']); ?></strong><div class="small text-secondary"><?php echo esc($l['message']); ?></div></td><td><?php echo esc($l['company_name']); ?></td><td><?php echo esc($l['metric_key']); ?></td><td><?php echo number_format((float)$l['current_value'],2).' / '.number_format((float)$l['limit_value'],2); ?></td><td><span class="badge bg-<?php echo esc(statusTone($l['status'])); ?>"><?php echo esc($l['status']); ?></span></td><td><?php if($l['status']==='open'): ?><form method="post"><input type="hidden" name="action" value="resolve"><input type="hidden" name="id" value="<?php echo (int)$l['id']; ?>"><button class="btn btn-sm btn-success">Resolve</button></form><?php endif; ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

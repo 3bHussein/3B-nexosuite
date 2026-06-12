@@ -1,0 +1,21 @@
+<?php
+$pageTitle='Warehouse Stock';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('inventory');
+$pdo=getDB();
+$scopeOptions=scopeSelectOptions($pdo);$scope=operationalScope($pdo);
+$warehouseId=(int)($_GET['warehouse_id']??$scope['warehouse_id']);$q=trim((string)($_GET['q']??''));
+$warehouseScopeStmt=$pdo->prepare('SELECT company_id,branch_id,id FROM '.table('warehouses').' WHERE id=? LIMIT 1');$warehouseScopeStmt->execute([$warehouseId]);$warehouseScope=$warehouseScopeStmt->fetch();
+if(!$warehouseScope){flash('error','Warehouse not found.');redirect(ADMIN_URL.'/erp/inventory.php');}
+enforceScopeAllowed($pdo,(int)($warehouseScope['company_id']??0),(int)($warehouseScope['branch_id']??0),(int)($warehouseScope['id']??0),false);
+$params=[$warehouseId];$where=' WHERE ws.warehouse_id=? ';
+if($q!==''){$where.=' AND (p.name LIKE ? OR p.sku LIKE ?) ';$like='%'.$q.'%';$params[]=$like;$params[]=$like;}
+$stmt=$pdo->prepare('SELECT ws.*,p.name,p.sku,p.price,w.warehouse_code,w.warehouse_name,b.branch_name,c.company_name,l.location_code,l.location_name FROM '.table('warehouse_stock').' ws LEFT JOIN '.table('products').' p ON p.id=ws.product_id LEFT JOIN '.table('warehouses').' w ON w.id=ws.warehouse_id LEFT JOIN '.table('branches').' b ON b.id=ws.branch_id LEFT JOIN '.table('companies').' c ON c.id=ws.company_id LEFT JOIN '.table('warehouse_locations').' l ON l.id=ws.location_id'.$where.' ORDER BY p.name ASC');
+$stmt->execute($params);$rows=$stmt->fetchAll();
+$total=0;$reserved=0;$low=0;foreach($rows as $row){$total+=(float)$row['quantity'];$reserved+=(float)$row['reserved_quantity'];if((float)$row['quantity']<=(float)$row['reorder_level']){$low++;}}
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Warehouse Balance</div><h2 class="h4 mb-1">Stock by Warehouse</h2><p class="text-secondary mb-0">Branch-aware stock quantities, reserved stock, and reorder visibility.</p></div><form class="d-flex flex-wrap gap-2 align-items-end"><div><label class="form-label">Warehouse</label><select class="form-select" name="warehouse_id"><?php foreach($scopeOptions['warehouses'] as $warehouse): ?><option value="<?php echo (int)$warehouse['id']; ?>" <?php echo (int)$warehouse['id']===$warehouseId?'selected':''; ?>><?php echo esc($warehouse['warehouse_code'].' · '.$warehouse['warehouse_name']); ?></option><?php endforeach; ?></select></div><div><label class="form-label">Search</label><input class="form-control" name="q" value="<?php echo esc($q); ?>"></div><button class="btn btn-brand">Filter</button></form></div>
+<div class="row g-4 mb-4"><div class="col-md-4"><div class="card-admin p-4"><div class="erp-kicker">Units</div><div class="metric-sm"><?php echo number_format($total,2); ?></div></div></div><div class="col-md-4"><div class="card-admin p-4"><div class="erp-kicker">Reserved</div><div class="metric-sm"><?php echo number_format($reserved,2); ?></div></div></div><div class="col-md-4"><div class="card-admin p-4"><div class="erp-kicker">Low Stock</div><div class="metric-sm <?php echo $low>0?'money-negative':'money-positive'; ?>"><?php echo (int)$low; ?></div></div></div></div>
+<div class="table-wrap table-responsive"><table class="table align-middle"><thead><tr><th>Product</th><th>Location</th><th>Qty</th><th>Reserved</th><th>Available</th><th>Avg Cost</th><th>Reorder</th><th>Stock Value</th></tr></thead><tbody><?php foreach($rows as $row): $available=(float)$row['quantity']-(float)$row['reserved_quantity']; ?><tr><td><strong><?php echo esc($row['sku'].' · '.$row['name']); ?></strong><div class="small text-secondary"><?php echo esc($row['company_name'].' / '.$row['branch_name'].' / '.$row['warehouse_name']); ?></div></td><td><?php echo esc(($row['location_code']?$row['location_code'].' · ':'').$row['location_name']); ?></td><td><?php echo number_format((float)$row['quantity'],2); ?></td><td><?php echo number_format((float)$row['reserved_quantity'],2); ?></td><td><?php echo number_format($available,2); ?></td><td><?php echo money($row['average_unit_cost']); ?></td><td><?php echo number_format((float)$row['reorder_level'],2); ?></td><td><?php echo money($row['stock_value']); ?></td></tr><?php endforeach; ?></tbody></table></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

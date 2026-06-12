@@ -1,0 +1,18 @@
+<?php
+$pageTitle='VAT Report';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('accounting');
+$pdo=getDB();
+$from=trim((string)($_GET['from']??date('Y-m-01')));
+$to=trim((string)($_GET['to']??date('Y-m-t')));
+$summary=vatLedgerSummary($pdo,$from,$to);
+$stmt=$pdo->prepare('SELECT a.id account_id,a.account_code,a.account_name,COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN jl.debit ELSE 0 END),0) debits,COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN jl.credit ELSE 0 END),0) credits FROM ' . table('accounts') . ' a LEFT JOIN ' . table('journal_lines') . ' jl ON jl.account_id=a.id LEFT JOIN ' . table('journal_entries') . ' je ON je.id=jl.journal_entry_id AND je.status IN ("posted","reversed") AND je.entry_date BETWEEN ? AND ? WHERE a.account_code IN ("1300","2100") GROUP BY a.id ORDER BY a.account_code ASC');
+$stmt->execute([$from,$to]);
+$rows=$stmt->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Tax Control</div><h2 class="h4 mb-1">VAT Report</h2><p class="text-secondary mb-0">Ledger-based input and output VAT summary from posted and reversed journals.</p></div><form class="d-flex flex-wrap gap-2 align-items-end"><div><label class="form-label">From</label><input class="form-control" type="date" name="from" value="<?php echo esc($from); ?>"></div><div><label class="form-label">To</label><input class="form-control" type="date" name="to" value="<?php echo esc($to); ?>"></div><button class="btn btn-brand">Filter</button></form></div>
+<div class="row g-4 mb-4"><div class="col-md-4"><div class="card-admin p-4"><div class="erp-kicker">Output VAT</div><div class="metric-sm money-negative"><?php echo money($summary['output_vat']); ?></div></div></div><div class="col-md-4"><div class="card-admin p-4"><div class="erp-kicker">Input VAT</div><div class="metric-sm money-positive"><?php echo money($summary['input_vat']); ?></div></div></div><div class="col-md-4"><div class="card-admin p-4"><div class="erp-kicker">Net VAT</div><div class="metric-sm <?php echo $summary['net_vat']>=0?'money-negative':'money-positive'; ?>"><?php echo money(abs($summary['net_vat'])); ?> <?php echo $summary['net_vat']>=0?'Payable':'Recoverable'; ?></div></div></div></div>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"><div class="small text-secondary">Use VAT Periods to save a filing snapshot for a reporting date range.</div><a class="btn btn-outline-primary" href="<?php echo esc(ADMIN_URL); ?>/erp/vat-periods.php?from=<?php echo esc($from); ?>&to=<?php echo esc($to); ?>">Open VAT Periods</a></div>
+<div class="table-wrap table-responsive"><table class="table align-middle"><thead><tr><th>VAT Account</th><th>Debits</th><th>Credits</th><th>Net</th></tr></thead><tbody><?php foreach($rows as $row): $net=$row['account_code']==='2100'?(float)$row['credits']-(float)$row['debits']:(float)$row['debits']-(float)$row['credits']; ?><tr><td><strong><?php echo esc($row['account_code']); ?></strong> · <a href="<?php echo esc(ADMIN_URL); ?>/erp/account-ledger.php?account_id=<?php echo (int)$row['account_id']; ?>"><?php echo esc($row['account_name']); ?></a></td><td><?php echo money($row['debits']); ?></td><td><?php echo money($row['credits']); ?></td><td><?php echo money($net); ?></td></tr><?php endforeach; ?></tbody></table></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

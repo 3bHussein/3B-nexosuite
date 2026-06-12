@@ -1,0 +1,17 @@
+<?php
+$pageTitle='View Goods Receipt Note';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('goods_receipts');
+$pdo=getDB();
+$id=(int)($_GET['id']??0);
+$stmt=$pdo->prepare('SELECT gr.*,po.po_number,s.supplier_code,u.email received_by_email FROM '.table('goods_receipts').' gr LEFT JOIN '.table('purchase_orders').' po ON po.id=gr.purchase_order_id LEFT JOIN '.table('suppliers').' s ON s.id=gr.supplier_id LEFT JOIN '.table('users').' u ON u.id=gr.received_by WHERE gr.id=? LIMIT 1');
+$stmt->execute([$id]);$grn=$stmt->fetch();
+if(!$grn){flash('error','Goods receipt note not found.');redirect(ADMIN_URL.'/erp/goods-receipts.php');}
+enforceScopeAllowed($pdo,(int)($grn['company_id']??0),(int)($grn['branch_id']??0),(int)($grn['warehouse_id']??0),false);
+$items=$pdo->prepare('SELECT gri.*,p.sku,p.name product_name FROM '.table('goods_receipt_items').' gri LEFT JOIN '.table('products').' p ON p.id=gri.product_id WHERE gri.goods_receipt_id=? ORDER BY gri.id ASC');$items->execute([$id]);$lines=$items->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4"><div><div class="erp-kicker">Goods Receipt Note</div><h2 class="h4 mb-1"><?php echo esc($grn['grn_number']); ?></h2><p class="text-secondary mb-0">PO <?php echo esc($grn['po_number']?:'—'); ?> · <?php echo esc($grn['supplier_name']?:'Supplier'); ?></p></div><div class="d-flex gap-2"><a class="btn btn-outline-dark" href="<?php echo esc(ADMIN_URL); ?>/erp/document-attachments.php?type=goods_receipt&id=<?php echo (int)$grn['id']; ?>">Attachments</a><a class="btn btn-outline-secondary" href="<?php echo esc(ADMIN_URL); ?>/erp/goods-receipts.php">Back</a></div></div>
+<div class="row g-4 mb-4"><div class="col-md-4"><div class="card-admin p-4"><div class="erp-kicker">Receipt Date</div><div class="metric-sm"><?php echo esc($grn['receipt_date']); ?></div></div></div><div class="col-md-4"><div class="card-admin p-4"><div class="erp-kicker">Accepted Value</div><div class="metric-sm"><?php echo money($grn['total_value']); ?></div></div></div><div class="col-md-4"><div class="card-admin p-4"><div class="erp-kicker">Received By</div><div class="h6 mb-0"><?php echo esc($grn['received_by_email']?:'System'); ?></div></div></div></div>
+<div class="table-wrap table-responsive"><div class="table-toolbar"><div><div class="erp-kicker">Receipt Items</div><h2 class="h5 mb-0">Accepted and Rejected Quantities</h2></div></div><table class="table align-middle"><thead><tr><th>Item</th><th>Received</th><th>Accepted</th><th>Rejected</th><th>Unit Cost</th><th>Accepted Value</th><th>Notes</th></tr></thead><tbody><?php foreach($lines as $line): ?><tr><td><strong><?php echo esc(($line['sku']?:'').' · '.($line['description']?:$line['product_name'])); ?></strong></td><td><?php echo number_format((float)$line['quantity_received'],2); ?></td><td><?php echo number_format((float)$line['accepted_quantity'],2); ?></td><td><?php echo number_format((float)$line['rejected_quantity'],2); ?></td><td><?php echo money($line['unit_cost']); ?></td><td><?php echo money($line['line_total']); ?></td><td><?php echo esc($line['notes']?:'—'); ?></td></tr><?php endforeach; ?></tbody></table></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

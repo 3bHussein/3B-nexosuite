@@ -1,0 +1,29 @@
+<?php
+$pageTitle='View Intercompany Transaction';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('intercompany');
+$pdo=getDB();
+$id=(int)($_GET['id']??0);
+$stmt=$pdo->prepare('SELECT ict.*,fc.company_name from_company_name,tc.company_name to_company_name,fb.branch_name from_branch_name,tb.branch_name to_branch_name,st.transfer_number FROM '.table('intercompany_transactions').' ict LEFT JOIN '.table('companies').' fc ON fc.id=ict.from_company_id LEFT JOIN '.table('companies').' tc ON tc.id=ict.to_company_id LEFT JOIN '.table('branches').' fb ON fb.id=ict.from_branch_id LEFT JOIN '.table('branches').' tb ON tb.id=ict.to_branch_id LEFT JOIN '.table('stock_transfers').' st ON st.id=ict.stock_transfer_id WHERE ict.id=? LIMIT 1');
+$stmt->execute([$id]);$row=$stmt->fetch();
+if(!$row){flash('error','Intercompany transaction not found.');redirect(ADMIN_URL.'/erp/intercompany-transactions.php');}
+if(!scopeAllowed($pdo,(int)($row['from_company_id']??0),(int)($row['from_branch_id']??0),0,false) && !scopeAllowed($pdo,(int)($row['to_company_id']??0),(int)($row['to_branch_id']??0),0,false)){flash('error','You do not have access to this intercompany transaction.');redirect(ADMIN_URL.'/erp/intercompany-transactions.php');}
+
+if($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action']??'')==='settle'){
+  try{
+    if(!scopeAllowed($pdo,(int)($row['from_company_id']??0),(int)($row['from_branch_id']??0),0,true) && !scopeAllowed($pdo,(int)($row['to_company_id']??0),(int)($row['to_branch_id']??0),0,true)){throw new RuntimeException('You do not have transaction rights for this intercompany record.');}
+    if(($row['status']??'')!=='recognized'){throw new RuntimeException('Only recognized intercompany records can be marked settled.');}
+    $pdo->prepare('UPDATE '.table('intercompany_transactions').' SET status="settled",settled_at=NOW(),notes=CONCAT(COALESCE(notes,""),"\nSettlement note: ",?) WHERE id=?')->execute([trim((string)($_POST['settlement_note']??'')),$id]);
+    logActivity($pdo,'Intercompany','intercompany_transaction_settled','Intercompany transaction '.$row['transaction_number'].' marked settled.','intercompany_transaction',$id);
+    flash('success','Intercompany transaction marked settled.');
+  }catch(Throwable $e){flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/view-intercompany-transaction.php?id='.$id);
+}
+$itemStmt=$pdo->prepare('SELECT item.*,p.sku,p.name FROM '.table('intercompany_transaction_items').' item LEFT JOIN '.table('products').' p ON p.id=item.product_id WHERE item.intercompany_transaction_id=? ORDER BY item.id ASC');
+$itemStmt->execute([$id]);$items=$itemStmt->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4"><div><div class="erp-kicker">Intercompany Transaction Detail</div><h2 class="h4 mb-1"><?php echo esc($row['transaction_number']); ?></h2><p class="text-secondary mb-0">Cross-company stock transfer value and recognition control.</p></div><span class="badge fs-6 bg-<?php echo esc(statusTone($row['status'])); ?>"><?php echo esc(str_replace('_',' ',ucwords($row['status'],'_'))); ?></span></div>
+<div class="row g-4 mb-4"><div class="col-xl-6"><div class="card-admin p-4"><div class="erp-kicker">Source Entity</div><h3 class="h5 mb-2"><?php echo esc(($row['from_company_name']?:'—').' / '.($row['from_branch_name']?:'—')); ?></h3><div>Total value released: <strong><?php echo money($row['total_value']); ?></strong></div></div></div><div class="col-xl-6"><div class="card-admin p-4"><div class="erp-kicker">Destination Entity</div><h3 class="h5 mb-2"><?php echo esc(($row['to_company_name']?:'—').' / '.($row['to_branch_name']?:'—')); ?></h3><div>Transfer: <?php if(!empty($row['stock_transfer_id'])): ?><a href="<?php echo esc(ADMIN_URL); ?>/erp/view-stock-transfer.php?id=<?php echo (int)$row['stock_transfer_id']; ?>"><?php echo esc($row['transfer_number']?:'Open transfer'); ?></a><?php else: ?>—<?php endif; ?></div></div></div></div>
+<div class="row g-4"><div class="col-xl-8"><div class="table-wrap table-responsive"><div class="table-toolbar"><div><div class="erp-kicker">Transaction Items</div><h2 class="h5 mb-0">Valued Intercompany Lines</h2></div></div><table class="table align-middle"><thead><tr><th>Product</th><th>Qty</th><th>Unit Cost</th><th>Total Value</th></tr></thead><tbody><?php foreach($items as $item): ?><tr><td><strong><?php echo esc(($item['sku']?:'').' · '.($item['name']?:'')); ?></strong><div class="small text-secondary"><?php echo esc($item['notes']); ?></div></td><td><?php echo number_format((float)$item['quantity'],2); ?></td><td><?php echo money($item['unit_cost']); ?></td><td><?php echo money($item['total_value']); ?></td></tr><?php endforeach; ?></tbody></table></div></div><div class="col-xl-4"><div class="card-admin p-4 mb-4"><div class="erp-kicker">Recognition</div><div class="d-grid gap-2"><div><strong>Recognized:</strong> <?php echo esc($row['recognized_at']?:'—'); ?></div><div><strong>Source Journal:</strong> <?php echo (int)($row['source_journal_id']??0) ?: '—'; ?></div><div><strong>Destination Journal:</strong> <?php echo (int)($row['destination_journal_id']??0) ?: '—'; ?></div><div><strong>Settled:</strong> <?php echo esc($row['settled_at']?:'—'); ?></div></div></div><?php if(($row['status']??'')==='recognized'): ?><form method="post" class="card-admin p-4"><input type="hidden" name="action" value="settle"><div class="erp-kicker">Settlement Status</div><h3 class="h5 mb-3">Mark Settled</h3><textarea class="form-control mb-3" name="settlement_note" rows="3" placeholder="Optional settlement reference or internal note"></textarea><button class="btn btn-brand w-100">Mark as Settled</button></form><?php endif; ?></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>
