@@ -71,8 +71,6 @@ Version **58.0** improves production readiness, accounting workflow, reporting, 
 
 ## Demo Customer Access
 
-> **Important:** Do not publish real production passwords in a public GitHub repository.
-
 Use the demo account below for customer testing.
 
 | Field | Value |
@@ -83,12 +81,129 @@ Use the demo account below for customer testing.
 
 For private customer delivery only, share the password through a secure message, not inside the public README.
 
-Recommended demo password format:
+---
+
+## Import Database Under `general_trading_erp`
+
+Use this section when you want to import the SQL database file into the local XAMPP database named:
 
 ```text
-3B-Nexo@2026-Demo
+general_trading_erp
 ```
 
+### Database Details
+
+| Field | Value |
+|---|---|
+| Database Name | `general_trading_erp` |
+| MySQL User | `root` |
+| MySQL Password | No password |
+| Environment | macOS XAMPP |
+
+---
+
+### Step 1 — Start XAMPP
+
+Open **XAMPP Manager** and start:
+
+```text
+Apache
+MySQL
+```
+
+---
+
+### Step 2 — Create the Database
+
+Open Terminal and run:
+
+```bash
+/Applications/XAMPP/xamppfiles/bin/mysql -u root -e "CREATE DATABASE IF NOT EXISTS general_trading_erp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+---
+
+### Step 3 — Import the SQL File
+
+If your SQL file is on the Desktop and named:
+
+```text
+general_trading_erp_full_backup.sql
+```
+
+Run this command:
+
+```bash
+/Applications/XAMPP/xamppfiles/bin/mysql -u root general_trading_erp < ~/Desktop/general_trading_erp_full_backup.sql
+```
+
+If your SQL file has another name, replace the file name in the command.
+
+Example:
+
+```bash
+/Applications/XAMPP/xamppfiles/bin/mysql -u root general_trading_erp < ~/Desktop/your_database_file.sql
+```
+
+---
+
+### Step 4 — Confirm the Import
+
+Open phpMyAdmin:
+
+```text
+http://localhost/phpmyadmin
+```
+
+Then check:
+
+```text
+general_trading_erp
+```
+
+You should see all imported tables under the database.
+
+---
+
+### Step 5 — Connect the Project to the Database
+
+Make sure the project database configuration uses:
+
+```text
+Database Host: localhost
+Database Name: general_trading_erp
+Database User: root
+Database Password: empty / no password
+```
+
+---
+
+### Step 6 — Test the System
+
+Open the project in the browser:
+
+```text
+http://localhost/3B-nexosuite/
+```
+
+Then test:
+
+- admin login
+- customer login
+- products
+- categories
+- orders
+- accounting dashboard
+- customer portal
+
+---
+
+### Import Notes
+
+- Make sure the SQL file is not empty before importing.
+- If the import fails because the database already has old tables, drop the database and recreate it.
+- Do not upload SQL backup files to public GitHub repositories.
+- Database backups may contain customers, orders, invoices, users, passwords, and private business data.
 ---
 
 ## Main Features
@@ -590,6 +705,106 @@ It should not:
 - block customers from viewing existing records
 
 It should only block new record creation after the trial limit until activation is completed.
+
+---
+
+## Database Export / Backup
+
+Use this section to export the full database before moving the project, updating files, or delivering the system to a customer.
+
+### Database Details
+
+| Item | Value |
+|---|---|
+| Database Name | `general_trading_erp` |
+| MySQL User | `root` |
+| MySQL Password | No password |
+| Environment | macOS XAMPP |
+
+---
+
+### Export Full Database Using Terminal
+
+Open **Terminal** on macOS and run:
+
+```bash
+/Applications/XAMPP/xamppfiles/bin/mysqldump -u root general_trading_erp > ~/Desktop/general_trading_erp_backup.sql
+```
+
+This will create the SQL backup file on your Desktop:
+
+```text
+general_trading_erp_backup.sql
+```
+
+---
+
+### Recommended Full Export Command
+
+For a more complete backup including tables, fields, data, triggers, routines, and events, use:
+
+```bash
+/Applications/XAMPP/xamppfiles/bin/mysqldump -u root --routines --triggers --events --single-transaction general_trading_erp > ~/Desktop/general_trading_erp_full_backup.sql
+```
+
+This will create:
+
+```text
+general_trading_erp_full_backup.sql
+```
+
+---
+
+### Export All Databases
+
+To export all local XAMPP databases:
+
+```bash
+/Applications/XAMPP/xamppfiles/bin/mysqldump -u root --all-databases > ~/Desktop/all_databases_backup.sql
+```
+
+---
+
+### Check That the Export File Was Created
+
+After running the export command, check your Desktop for:
+
+```text
+general_trading_erp_full_backup.sql
+```
+
+You can also confirm from Terminal:
+
+```bash
+ls -lh ~/Desktop/general_trading_erp_full_backup.sql
+```
+
+If the file size is greater than `0B`, the export was created.
+
+---
+
+### Restore Database Later
+
+If you need to restore the backup later, first create the database:
+
+```bash
+/Applications/XAMPP/xamppfiles/bin/mysql -u root -e "CREATE DATABASE general_trading_erp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+Then import the SQL backup:
+
+```bash
+/Applications/XAMPP/xamppfiles/bin/mysql -u root general_trading_erp < ~/Desktop/general_trading_erp_full_backup.sql
+```
+
+---
+
+### Notes
+
+- Make sure **Apache** and **MySQL** are running in XAMPP before export/import.
+- Keep the SQL backup file safe.
+- Do not upload database backups to public GitHub repositories.
+- Do not share SQL backups publicly because they may contain customer data, admin users, passwords, orders, invoices, and business information.
 
 ---
 
