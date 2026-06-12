@@ -1,0 +1,18 @@
+<?php
+$pageTitle='AI Risk Scoring';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('ai_risk_scoring');
+$pdo=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    if(($_POST['action']??'')==='resolve'){$pdo->prepare('UPDATE '.table('ai_risk_scores').' SET status="resolved",resolved_at=NOW() WHERE id=?')->execute([(int)$_POST['id']]);flash('success','Risk score resolved.');}
+    else{createAiRiskScore($pdo,trim((string)$_POST['model_code']),trim((string)$_POST['entity_type']),(int)($_POST['entity_id']??0)?:null,trim((string)$_POST['entity_label']),trim((string)$_POST['module']),max(0,(float)$_POST['risk_score']),trim((string)$_POST['reason']),trim((string)$_POST['recommended_action']));flash('success','Risk score created.');}
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'ai-risk-scoring']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/ai-risk-scoring.php');
+}
+$rows=$pdo->query('SELECT * FROM '.table('ai_risk_scores').' ORDER BY FIELD(status,"open","resolved"),risk_score DESC,created_at DESC LIMIT 250')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Risk Intelligence</div><h2 class="h4 mb-1">AI Risk Scoring</h2><p class="text-secondary mb-0">Review risk scoring for invoice collection, stockout, leads, suppliers, and service delays.</p></div><a class="btn btn-brand" href="<?php echo esc(ADMIN_URL); ?>/erp/ai-automation-dashboard.php">Run AI Engine</a></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><h2 class="h5 mb-3">Create Risk Score</h2><input class="form-control mb-2" name="model_code" value="MANUAL_RISK"><input class="form-control mb-2" name="entity_type" placeholder="invoice / customer / product"><input class="form-control mb-2" type="number" name="entity_id" placeholder="Entity ID"><input class="form-control mb-2" name="entity_label" placeholder="Entity label"><input class="form-control mb-2" name="module" placeholder="Module"><input class="form-control mb-2" type="number" step="0.01" name="risk_score" placeholder="Risk score"><textarea class="form-control mb-2" name="reason" rows="3" placeholder="Reason"></textarea><textarea class="form-control mb-3" name="recommended_action" rows="3" placeholder="Recommended action"></textarea><button class="btn btn-outline-primary w-100">Create</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive"><table class="table align-middle"><thead><tr><th>Risk</th><th>Entity</th><th>Module</th><th>Score</th><th>Action</th><th>Status</th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><strong><?php echo esc($r['score_number']); ?></strong><div class="small text-secondary"><?php echo esc($r['model_code']); ?></div></td><td><?php echo esc($r['entity_type'].' · '.$r['entity_label']); ?><div class="small text-secondary"><?php echo esc($r['reason']); ?></div></td><td><?php echo esc($r['module']); ?></td><td><?php echo number_format((float)$r['risk_score'],2); ?><br><span class="badge bg-<?php echo esc(statusTone($r['risk_level'])); ?>"><?php echo esc($r['risk_level']); ?></span></td><td class="small"><?php echo esc($r['recommended_action']); ?></td><td><?php if($r['status']!=='resolved'): ?><form method="post"><input type="hidden" name="action" value="resolve"><input type="hidden" name="id" value="<?php echo (int)$r['id']; ?>"><button class="btn btn-sm btn-success">Resolve</button></form><?php else: ?><span class="badge bg-success">resolved</span><?php endif; ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>
