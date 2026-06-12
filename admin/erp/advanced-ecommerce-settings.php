@@ -1,0 +1,23 @@
+<?php
+$pageTitle='Advanced Ecommerce Settings';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('advanced_ecommerce_settings');
+$pdo=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    $action=(string)($_POST['action']??'discount');
+    if($action==='discount'){
+      $number=nextScopedDocumentNumber($pdo,'ecommerce_discount_rule',setting('ecommerce_discount_rule_prefix','EDISC'),operationalScope($pdo));$user=currentUser();
+      $pdo->prepare('INSERT INTO '.table('ecommerce_discount_rules').' (rule_number,rule_name,rule_scope,rule_type,rule_value,min_subtotal,coupon_code,customer_type,start_date,end_date,status,notes,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)')->execute([$number,trim((string)$_POST['rule_name']),trim((string)$_POST['rule_scope']),trim((string)$_POST['rule_type']),(float)$_POST['rule_value'],(float)$_POST['min_subtotal'],trim((string)$_POST['coupon_code']),trim((string)$_POST['customer_type']),trim((string)$_POST['start_date'])?:null,trim((string)$_POST['end_date'])?:null,trim((string)$_POST['status']),trim((string)$_POST['notes']),(int)($user['id']??0)?:null]);
+      flash('success','Discount rule created.');
+    }
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'advanced-ecommerce-settings']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/advanced-ecommerce-settings.php');
+}
+$rules=$pdo->query('SELECT * FROM '.table('ecommerce_discount_rules').' ORDER BY created_at DESC LIMIT 200')->fetchAll();
+$activity=$pdo->query('SELECT * FROM '.table('ecommerce_activity_logs').' ORDER BY created_at DESC LIMIT 200')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="mb-4"><div class="erp-kicker">Advanced Store Controls</div><h2 class="h4 mb-1">Advanced Ecommerce Settings</h2><p class="text-secondary mb-0">Manage discount rules and review ecommerce activity logs.</p></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><h2 class="h5 mb-3">Discount Rule</h2><input class="form-control mb-2" name="rule_name" placeholder="B2B Bulk Discount"><select class="form-select mb-2" name="rule_scope"><option>cart</option><option>product</option><option>category</option><option>shipping</option></select><select class="form-select mb-2" name="rule_type"><option>percent</option><option>amount</option><option>free_shipping</option></select><input class="form-control mb-2" type="number" step="0.01" name="rule_value" placeholder="Value"><input class="form-control mb-2" type="number" step="0.01" name="min_subtotal" placeholder="Minimum subtotal"><input class="form-control mb-2" name="coupon_code" placeholder="Coupon code"><select class="form-select mb-2" name="customer_type"><option value="">Any customer</option><option>b2b</option><option>b2c</option><option>dealer</option></select><div class="row g-2"><div class="col-6"><input class="form-control" type="date" name="start_date"></div><div class="col-6"><input class="form-control" type="date" name="end_date"></div></div><select class="form-select my-2" name="status"><option>active</option><option>inactive</option></select><textarea class="form-control mb-3" name="notes" rows="3"></textarea><button class="btn btn-brand w-100">Create Rule</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive mb-4"><h2 class="h5 mb-3">Discount Rules</h2><table class="table"><thead><tr><th>Rule</th><th>Scope</th><th>Value</th><th>Status</th></tr></thead><tbody><?php foreach($rules as $r): ?><tr><td><strong><?php echo esc($r['rule_number']); ?></strong><div class="small text-secondary"><?php echo esc($r['rule_name'].' · '.$r['coupon_code']); ?></div></td><td><?php echo esc($r['rule_scope'].' · '.$r['customer_type']); ?></td><td><?php echo esc($r['rule_type'].' '.$r['rule_value']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($r['status'])); ?>"><?php echo esc($r['status']); ?></span></td></tr><?php endforeach; ?></tbody></table></div><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Activity Logs</h2><table class="table"><tbody><?php foreach($activity as $a): ?><tr><td><strong><?php echo esc($a['activity_number']); ?></strong><div class="small text-secondary"><?php echo esc($a['activity_type'].' · '.$a['message'].' · '.$a['created_at']); ?></div></td><td><?php echo esc($a['entity_type'].' #'.$a['entity_id']); ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

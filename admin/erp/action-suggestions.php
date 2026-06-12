@@ -1,0 +1,20 @@
+<?php
+$pageTitle='Smart Action Suggestions';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('smart_action_suggestions');
+$pdo=getDB();$user=currentUser();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    $action=(string)($_POST['action']??'suggest');
+    if($action==='complete'){$pdo->prepare('UPDATE '.table('ai_assistant_action_suggestions').' SET status="completed",completed_at=NOW() WHERE id=?')->execute([(int)$_POST['id']]);flash('success','Suggestion completed.');}
+    else{createAiActionSuggestion($pdo,trim((string)$_POST['module']),trim((string)$_POST['suggestion_title']),trim((string)$_POST['suggestion_text']),trim((string)$_POST['action_label']),trim((string)$_POST['action_url']),trim((string)$_POST['priority']),(int)($user['id']??0)?:null);flash('success','Action suggestion created.');}
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'action-suggestions']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/action-suggestions.php');
+}
+$rows=$pdo->query('SELECT * FROM '.table('ai_assistant_action_suggestions').' ORDER BY FIELD(status,"open","completed"),FIELD(priority,"critical","high","medium","low"),created_at DESC LIMIT 200')->fetchAll();
+$playbooks=$pdo->query('SELECT * FROM '.table('ai_assistant_playbooks').' ORDER BY module,playbook_name LIMIT 100')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Next Best Action</div><h2 class="h4 mb-1">Smart Action Suggestions</h2><p class="text-secondary mb-0">Operational action cards created by AI scoring, assistant playbooks, and manual control.</p></div></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4 mb-4"><h2 class="h5 mb-3">Create Suggestion</h2><input class="form-control mb-2" name="module" placeholder="Finance / Sales / Inventory"><input class="form-control mb-2" name="suggestion_title" placeholder="Title"><textarea class="form-control mb-2" name="suggestion_text" rows="4" placeholder="Suggestion"></textarea><input class="form-control mb-2" name="action_label" placeholder="Open Page"><input class="form-control mb-2" name="action_url" placeholder="/admin/erp/..."><select class="form-select mb-3" name="priority"><option>low</option><option selected>medium</option><option>high</option><option>critical</option></select><button class="btn btn-brand w-100">Create</button></form><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Playbooks</h2><table class="table"><tbody><?php foreach($playbooks as $p): ?><tr><td><strong><?php echo esc($p['playbook_name']); ?></strong><div class="small text-secondary"><?php echo esc($p['module'].' · '.$p['trigger_phrase']); ?></div></td></tr><?php endforeach; ?></tbody></table></div></div><div class="col-xl-8"><div class="table-wrap table-responsive"><table class="table align-middle"><thead><tr><th>Suggestion</th><th>Module</th><th>Priority</th><th>Status</th><th>Action</th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><strong><?php echo esc($r['suggestion_number']); ?></strong><div><?php echo esc($r['suggestion_title']); ?></div><div class="small text-secondary"><?php echo esc($r['suggestion_text']); ?></div></td><td><?php echo esc($r['module']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($r['priority'])); ?>"><?php echo esc($r['priority']); ?></span></td><td><span class="badge bg-<?php echo esc(statusTone($r['status'])); ?>"><?php echo esc($r['status']); ?></span></td><td><a class="btn btn-sm btn-outline-primary" href="<?php echo esc($r['action_url'] ?: '#'); ?>"><?php echo esc($r['action_label'] ?: 'Open'); ?></a><?php if($r['status']!=='completed'): ?><form method="post" class="mt-1"><input type="hidden" name="action" value="complete"><input type="hidden" name="id" value="<?php echo (int)$r['id']; ?>"><button class="btn btn-sm btn-success">Complete</button></form><?php endif; ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>
