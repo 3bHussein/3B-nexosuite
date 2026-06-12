@@ -1,0 +1,23 @@
+<?php
+require_once dirname(__DIR__) . '/includes/functions.php';
+$user=currentUser();if(!$user || ($user['role']??'')!=='vendor'){redirect(SITE_URL.'/vendor/login.php');}
+$pdo=getDB();$a=$pdo->prepare('SELECT supplier_id FROM '.table('supplier_user_access').' WHERE user_id=? AND status="active" LIMIT 1');$a->execute([$user['id']]);$supplierId=(int)($a->fetchColumn()?:0);
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    $invId=(int)$_POST['invitation_id'];
+    $inv=$pdo->prepare('SELECT * FROM '.table('rfq_supplier_invitations').' WHERE id=? AND supplier_id=? LIMIT 1');$inv->execute([$invId,$supplierId]);$i=$inv->fetch();if(!$i){throw new RuntimeException('Invitation not found.');}
+    $subtotal=max(0,(float)$_POST['subtotal']);$tax=max(0,(float)$_POST['tax']);$shipping=max(0,(float)$_POST['shipping']);$total=$subtotal+$tax+$shipping;
+    $number=nextScopedDocumentNumber($pdo,'rfq_quote_response',setting('rfq_quote_response_prefix','RQR'),operationalScope($pdo));
+    $pdo->prepare('INSERT INTO '.table('rfq_supplier_quotes').' (rfq_id,rfq_supplier_invitation_id,supplier_id,response_number,quote_date,subtotal,tax,shipping,total_amount,delivery_days,payment_terms,valid_until,status,notes,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,"submitted",?,?)')->execute([(int)$i['rfq_id'],$invId,$supplierId,$number,date('Y-m-d'),$subtotal,$tax,$shipping,$total,max(0,(int)$_POST['delivery_days']),trim((string)$_POST['payment_terms']),trim((string)$_POST['valid_until'])?:null,trim((string)$_POST['notes']),(int)$user['id']]);
+    $pdo->prepare('UPDATE '.table('rfq_supplier_invitations').' SET status="responded",responded_at=NOW() WHERE id=?')->execute([$invId]);
+    flash('success','RFQ quote submitted.');
+  }catch(Throwable $e){flash('error',$e->getMessage());}
+  redirect(SITE_URL.'/vendor/rfqs.php');
+}
+$rows=$pdo->prepare('SELECT i.*,r.rfq_number,r.title,r.due_date,r.status rfq_status FROM '.table('rfq_supplier_invitations').' i LEFT JOIN '.table('rfqs').' r ON r.id=i.rfq_id WHERE i.supplier_id=? ORDER BY i.created_at DESC');$rows->execute([$supplierId]);$rows=$rows->fetchAll();
+$quotes=$pdo->prepare('SELECT * FROM '.table('rfq_supplier_quotes').' WHERE supplier_id=? ORDER BY created_at DESC LIMIT 50');$quotes->execute([$supplierId]);$quotes=$quotes->fetchAll();
+siteHeader('Vendor RFQs','login');
+?>
+<h1 class="mb-4">RFQ Invitations</h1>
+<div class="row g-4"><div class="col-lg-7"><div class="table-card table-responsive"><table class="table align-middle"><thead><tr><th>RFQ</th><th>Due</th><th>Status</th><th>Respond</th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><strong><?php echo esc($r['rfq_number']); ?></strong><div class="small text-secondary"><?php echo esc($r['title']); ?></div></td><td><?php echo esc($r['due_date']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($r['status'])); ?>"><?php echo esc($r['status']); ?></span></td><td><form method="post" class="row g-2"><input type="hidden" name="invitation_id" value="<?php echo (int)$r['id']; ?>"><div class="col-6"><input class="form-control form-control-sm" name="subtotal" placeholder="Subtotal"></div><div class="col-6"><input class="form-control form-control-sm" name="tax" placeholder="Tax"></div><div class="col-6"><input class="form-control form-control-sm" name="shipping" placeholder="Shipping"></div><div class="col-6"><input class="form-control form-control-sm" name="delivery_days" placeholder="Days"></div><div class="col-6"><input class="form-control form-control-sm" name="payment_terms" placeholder="Terms"></div><div class="col-6"><input class="form-control form-control-sm" type="date" name="valid_until"></div><div class="col-12"><input class="form-control form-control-sm" name="notes" placeholder="Notes"></div><div class="col-12"><button class="btn btn-sm btn-brand">Submit Quote</button></div></form></td></tr><?php endforeach; ?></tbody></table></div></div><div class="col-lg-5"><div class="table-card table-responsive"><h2 class="h5">My Quotes</h2><table class="table"><thead><tr><th>Response</th><th>Total</th><th>Status</th></tr></thead><tbody><?php foreach($quotes as $q): ?><tr><td><?php echo esc($q['response_number']); ?></td><td><?php echo money($q['total_amount']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($q['status'])); ?>"><?php echo esc($q['status']); ?></span></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php siteFooter(); ?>

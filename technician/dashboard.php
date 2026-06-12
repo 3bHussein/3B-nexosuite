@@ -1,0 +1,10 @@
+<?php
+require_once dirname(__DIR__) . '/includes/functions.php';
+employeePortalGuard();$user=currentUser();$pdo=getDB();
+if(setting('technician_portal_enabled','1')!=='1'){flash('error','Technician portal is disabled.');redirect(SITE_URL.'/employee/dashboard.php');}
+$stmt=$pdo->prepare('SELECT COUNT(*) FROM '.table('job_cards').' WHERE technician_user_id=? AND status IN ("diagnosis","in_progress","waiting_parts")');$stmt->execute([$user['id']]);$active=(int)$stmt->fetchColumn();
+$stmt=$pdo->prepare('SELECT COUNT(*) FROM '.table('technician_timesheets').' WHERE technician_user_id=? AND status="draft"');$stmt->execute([$user['id']]);$draft=(int)$stmt->fetchColumn();
+siteHeader('Technician Portal','login');
+?>
+<section class="rounded-5 p-4 mb-4" style="background:#0f172a;color:#fff"><div class="small text-uppercase opacity-75">Technician Portal</div><h1 class="display-6 fw-bold">My Mobile Workspace</h1><p class="mb-0 opacity-75">Assigned jobs, timesheets and workshop notes optimized for mobile use.</p></section><div class="row g-4"><div class="col-6"><div class="metric-card p-4"><div class="text-secondary">Active Jobs</div><div class="display-6 fw-bold"><?php echo $active; ?></div><a href="<?php echo esc(SITE_URL); ?>/technician/job-cards.php">Open</a></div></div><div class="col-6"><div class="metric-card p-4"><div class="text-secondary">Draft Time</div><div class="display-6 fw-bold"><?php echo $draft; ?></div><a href="<?php echo esc(SITE_URL); ?>/technician/timesheets.php">Timesheets</a></div></div></div><div class="form-card mt-4"><div class="d-grid gap-2"><a class="btn btn-brand" href="<?php echo esc(SITE_URL); ?>/technician/job-cards.php">My Job Cards</a><a class="btn btn-outline-primary" href="<?php echo esc(SITE_URL); ?>/technician/timesheets.php">Submit Timesheet</a><a class="btn btn-outline-secondary" href="<?php echo esc(SITE_URL); ?>/employee/dashboard.php">Employee Portal</a></div></div>
+<?php siteFooter(); ?>

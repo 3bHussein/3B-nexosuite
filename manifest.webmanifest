@@ -1,0 +1,31 @@
+{
+  "name": "General Trading ERP Store ERP",
+  "short_name": "ERP",
+  "description": "Installable ERP, e-commerce and service management web app.",
+  "start_url": "/mobile/index.php",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/assets/img/pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/img/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {"name":"Dashboard","url":"/mobile/index.php","description":"Mobile ERP dashboard"},
+    {"name":"Technician","url":"/mobile/technician.php","description":"Technician mobile workspace"},
+    {"name":"Customer","url":"/mobile/customer.php","description":"Customer portal"},
+    {"name":"Employee","url":"/mobile/employee.php","description":"Employee self-service"}
+  ]
+}

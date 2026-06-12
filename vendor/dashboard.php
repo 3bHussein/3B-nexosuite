@@ -1,0 +1,14 @@
+<?php
+require_once dirname(__DIR__) . '/includes/functions.php';
+$user=currentUser();if(!$user || ($user['role']??'')!=='vendor'){redirect(SITE_URL.'/vendor/login.php');}
+$pdo=getDB();$access=$pdo->prepare('SELECT sua.*,s.company_name,s.supplier_code FROM '.table('supplier_user_access').' sua LEFT JOIN '.table('suppliers').' s ON s.id=sua.supplier_id WHERE sua.user_id=? AND sua.status="active" LIMIT 1');$access->execute([$user['id']]);$vendor=$access->fetch();if(!$vendor){flash('error','No active supplier access.');redirect(SITE_URL.'/vendor/login.php');}
+$supplierId=(int)$vendor['supplier_id'];
+$stmt=$pdo->prepare('SELECT COUNT(*) FROM '.table('purchase_orders').' WHERE supplier_id=?');$stmt->execute([$supplierId]);$poCount=(int)$stmt->fetchColumn();
+$stmt=$pdo->prepare('SELECT COUNT(*) FROM '.table('supplier_invoices').' WHERE supplier_id=?');$stmt->execute([$supplierId]);$invoiceCount=(int)$stmt->fetchColumn();
+$stmt=$pdo->prepare('SELECT COUNT(*) FROM '.table('vendor_document_uploads').' WHERE supplier_id=?');$stmt->execute([$supplierId]);$docCount=(int)$stmt->fetchColumn();
+siteHeader('Vendor Dashboard','login');
+?>
+<section class="rounded-5 p-4 p-lg-5 mb-4" style="background:#111827;color:#fff"><div class="small text-uppercase opacity-75 mb-2">Vendor Portal</div><h1 class="display-6 fw-bold"><?php echo esc($vendor['company_name']); ?></h1><p class="mb-0 opacity-75">Review purchase orders, supplier invoices and upload requested documents.</p></section>
+<div class="row g-4"><div class="col-6 col-lg-4"><div class="metric-card p-4"><div class="text-secondary"><?php echo t('Purchase Orders', 'أوامر الشراء'); ?></div><div class="display-6 fw-bold"><?php echo $poCount; ?></div><a href="<?php echo esc(SITE_URL); ?>/vendor/purchase-orders.php">View</a></div></div><div class="col-6 col-lg-4"><div class="metric-card p-4"><div class="text-secondary">Invoices</div><div class="display-6 fw-bold"><?php echo $invoiceCount; ?></div><a href="<?php echo esc(SITE_URL); ?>/vendor/supplier-invoices.php">View</a></div></div><div class="col-6 col-lg-4"><div class="metric-card p-4"><div class="text-secondary">Documents</div><div class="display-6 fw-bold"><?php echo $docCount; ?></div><a href="<?php echo esc(SITE_URL); ?>/vendor/documents.php">Upload</a></div></div></div>
+<div class="form-card mt-4 d-flex flex-wrap gap-2"><a class="btn btn-brand" href="<?php echo esc(SITE_URL); ?>/vendor/rfqs.php">RFQ Invitations</a><a class="btn btn-outline-primary" href="<?php echo esc(SITE_URL); ?>/vendor/profile.php">Vendor Profile</a><a class="btn btn-outline-secondary" href="<?php echo esc(SITE_URL); ?>/vendor/logout.php">Logout</a></div>
+<?php siteFooter(); ?>

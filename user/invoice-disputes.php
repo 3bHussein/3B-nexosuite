@@ -1,0 +1,11 @@
+<?php
+require_once dirname(__DIR__) . '/includes/functions.php';
+userGuard();$user=currentUser();$pdo=getDB();$ctx=customerPortalContext($pdo,$user);
+websitePermissionGuard('customer_invoice_disputes');
+$invStmt=$pdo->prepare('SELECT * FROM '.table('invoices').' WHERE customer_email=? ORDER BY created_at DESC');$invStmt->execute([$ctx['email']]);$invoices=$invStmt->fetchAll();
+if($_SERVER['REQUEST_METHOD']==='POST'){try{createCustomerInvoiceDispute($pdo,(int)$_POST['invoice_id'],$ctx['user_id'],$ctx['customer_id'],trim((string)$_POST['reason']),trim((string)$_POST['description']));flash('success','Invoice dispute submitted.');}catch(Throwable $e){flash('error',$e->getMessage());}redirect(SITE_URL.'/user/invoice-disputes.php');}
+$stmt=$pdo->prepare('SELECT d.*,i.invoice_number FROM '.table('customer_invoice_disputes').' d LEFT JOIN '.table('invoices').' i ON i.id=d.invoice_id WHERE d.user_id=? OR d.customer_id=? ORDER BY d.created_at DESC');$stmt->execute([$ctx['user_id'],$ctx['customer_id']]);$rows=$stmt->fetchAll();
+siteHeader('Invoice Disputes','login');
+?>
+<h1 class="mb-4">Invoice Disputes</h1><div class="row g-4"><div class="col-lg-5"><form method="post" class="form-card"><h2 class="h4">Submit Dispute</h2><select class="form-select mb-3" name="invoice_id"><?php foreach($invoices as $i): ?><option value="<?php echo (int)$i['id']; ?>"><?php echo esc($i['invoice_number'].' · '.money($i['balance_due'])); ?></option><?php endforeach; ?></select><input class="form-control mb-3" name="reason" placeholder="Reason" required><textarea class="form-control mb-3" name="description" rows="5" placeholder="Explain the dispute" required></textarea><button class="btn btn-brand">Submit</button></form></div><div class="col-lg-7"><div class="table-card table-responsive"><table class="table"><thead><tr><th>Dispute</th><th>Invoice</th><th>Reason</th><th>Status</th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><strong><?php echo esc($r['dispute_number']); ?></strong></td><td><?php echo esc($r['invoice_number']); ?></td><td><?php echo esc($r['reason']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($r['status'])); ?>"><?php echo esc($r['status']); ?></span></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php siteFooter(); ?>

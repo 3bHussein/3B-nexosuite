@@ -1,0 +1,14 @@
+<?php
+require_once dirname(__DIR__) . '/includes/functions.php';
+$user=currentUser();if(!$user || ($user['role']??'')!=='vendor'){redirect(SITE_URL.'/vendor/login.php');}
+$pdo=getDB();$a=$pdo->prepare('SELECT supplier_id,can_upload_documents FROM '.table('supplier_user_access').' WHERE user_id=? AND status="active" LIMIT 1');$a->execute([$user['id']]);$access=$a->fetch();$supplierId=(int)($access['supplier_id']??0);
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  if(empty($access['can_upload_documents'])){flash('error','Upload access is disabled.');redirect(SITE_URL.'/vendor/documents.php');}
+  try{$upload=uploadAdminDocument('vendor_file','vendor-documents');if(!$upload){throw new RuntimeException('Choose a file.');}$pdo->prepare('INSERT INTO '.table('vendor_document_uploads').' (supplier_id,user_id,document_type,document_id,file_name,stored_path,mime_type,file_size,notes) VALUES (?,?,?,?,?,?,?,?,?)')->execute([$supplierId,$user['id'],trim($_POST['document_type']??'general'),(int)($_POST['document_id']??0)?:null,$upload['file_name'],$upload['stored_path'],$upload['mime_type'],$upload['file_size'],trim($_POST['notes']??'')]);flash('success','Document uploaded.');}catch(Throwable $e){flash('error',$e->getMessage());}
+  redirect(SITE_URL.'/vendor/documents.php');
+}
+$stmt=$pdo->prepare('SELECT * FROM '.table('vendor_document_uploads').' WHERE supplier_id=? ORDER BY created_at DESC');$stmt->execute([$supplierId]);$rows=$stmt->fetchAll();
+siteHeader('Vendor Documents','login');
+?>
+<h1 class="mb-4">Vendor Documents</h1><div class="row g-4"><div class="col-lg-5"><form method="post" enctype="multipart/form-data" class="form-card"><h2 class="h4">Upload Document</h2><label class="form-label">Type</label><select class="form-select mb-3" name="document_type"><option value="invoice">Invoice</option><option value="delivery_note">Delivery Note</option><option value="certificate">Certificate</option><option value="general">General</option></select><label class="form-label">Reference ID</label><input class="form-control mb-3" type="number" name="document_id"><label class="form-label">File</label><input class="form-control mb-3" type="file" name="vendor_file" required><label class="form-label">Notes</label><textarea class="form-control mb-3" name="notes"></textarea><button class="btn btn-brand">Upload</button></form></div><div class="col-lg-7"><div class="table-card table-responsive"><table class="table"><thead><tr><th>File</th><th>Type</th><th>Date</th></tr></thead><tbody><?php foreach($rows as $d): ?><tr><td><?php echo esc($d['file_name']); ?><div class="small text-secondary"><?php echo esc($d['notes']); ?></div></td><td><?php echo esc($d['document_type']); ?></td><td><?php echo esc($d['created_at']); ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php siteFooter(); ?>

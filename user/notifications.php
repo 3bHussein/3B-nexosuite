@@ -1,0 +1,9 @@
+<?php
+require_once dirname(__DIR__) . '/includes/functions.php';
+userGuard();$user=currentUser();$pdo=getDB();$ctx=customerPortalContext($pdo,$user);
+if(isset($_GET['read'])){$pdo->prepare('UPDATE '.table('customer_portal_notifications').' SET status="read",read_at=NOW() WHERE id=? AND (user_id=? OR customer_id=?)')->execute([(int)$_GET['read'],$ctx['user_id'],$ctx['customer_id']]);redirect(SITE_URL.'/user/notifications.php');}
+$stmt=$pdo->prepare('SELECT * FROM '.table('customer_portal_notifications').' WHERE user_id=? OR customer_id=? ORDER BY created_at DESC LIMIT 200');$stmt->execute([$ctx['user_id'],$ctx['customer_id']]);$rows=$stmt->fetchAll();
+siteHeader('Notifications','login');
+?>
+<h1 class="mb-4">Notifications</h1><div class="table-card table-responsive"><table class="table align-middle"><thead><tr><th>Notification</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><strong><?php echo esc($r['title']); ?></strong><div class="small text-secondary"><?php echo esc($r['message']); ?></div></td><td><span class="badge bg-<?php echo esc(statusTone($r['status'])); ?>"><?php echo esc($r['status']); ?></span></td><td><?php echo esc($r['created_at']); ?></td><td><?php if($r['status']==='unread'): ?><a class="btn btn-sm btn-outline-primary" href="?read=<?php echo (int)$r['id']; ?>">Mark Read</a><?php endif; ?><?php if($r['link_url']): ?><a class="btn btn-sm btn-brand" href="<?php echo esc(SITE_URL.$r['link_url']); ?>">Open</a><?php endif; ?></td></tr><?php endforeach; ?><?php if(!$rows): ?><tr><td colspan="4" class="text-secondary">No notifications.</td></tr><?php endif; ?></tbody></table></div>
+<?php siteFooter(); ?>
