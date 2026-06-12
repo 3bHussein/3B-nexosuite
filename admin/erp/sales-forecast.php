@@ -1,0 +1,13 @@
+<?php
+$pageTitle='Sales Forecast';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('sales_forecast');
+$pdo=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){try{createSalesForecast($pdo,trim((string)$_POST['period_label']));flash('success','Forecast generated.');}catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'sales-forecast']);flash('error',$e->getMessage());}redirect(ADMIN_URL.'/erp/sales-forecast.php');}
+$rows=$pdo->query('SELECT * FROM '.table('crm_sales_forecasts').' ORDER BY created_at DESC LIMIT 150')->fetchAll();
+$stageRows=$pdo->query('SELECT s.stage_name,COALESCE(SUM(o.value_amount),0) total_value,COALESCE(SUM(o.weighted_value),0) weighted_value,COUNT(o.id) count_deals FROM '.table('sales_pipeline_stages').' s LEFT JOIN '.table('sales_opportunities').' o ON o.stage_id=s.id AND o.status="open" GROUP BY s.id ORDER BY s.sort_order')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Revenue Prediction</div><h2 class="h4 mb-1">Sales Forecast</h2><p class="text-secondary mb-0">Generate period forecast from open opportunities, weighted value, won value, and lost value.</p></div><form method="post" class="d-flex gap-2"><input class="form-control" name="period_label" value="<?php echo esc(date('Y-m')); ?>"><button class="btn btn-brand">Generate</button></form></div>
+<div class="row g-4"><div class="col-xl-5"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Current Pipeline by Stage</h2><table class="table"><thead><tr><th>Stage</th><th>Deals</th><th>Total</th><th>Weighted</th></tr></thead><tbody><?php foreach($stageRows as $s): ?><tr><td><?php echo esc($s['stage_name']); ?></td><td><?php echo (int)$s['count_deals']; ?></td><td><?php echo money($s['total_value']); ?></td><td><?php echo money($s['weighted_value']); ?></td></tr><?php endforeach; ?></tbody></table></div></div><div class="col-xl-7"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Forecast History</h2><table class="table"><thead><tr><th>Forecast</th><th>Period</th><th>Pipeline</th><th>Weighted</th><th>Expected</th><th>Open</th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><strong><?php echo esc($r['forecast_number']); ?></strong></td><td><?php echo esc($r['period_label']); ?></td><td><?php echo money($r['pipeline_value']); ?></td><td><?php echo money($r['weighted_value']); ?></td><td><?php echo money($r['expected_revenue']); ?></td><td><?php echo (int)$r['open_opportunities']; ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

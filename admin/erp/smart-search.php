@@ -1,0 +1,13 @@
+<?php
+$pageTitle='Smart Search';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('smart_search');
+$pdo=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){try{$result=rebuildSmartSearchIndex($pdo);flash('success','Smart search index rebuilt: '.$result['indexed'].' records.');}catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'smart-search']);flash('error',$e->getMessage());}redirect(ADMIN_URL.'/erp/smart-search.php');}
+$q=trim((string)($_GET['q']??''));$results=[];$searchError='';
+try{$results=$q!==''?smartSearch($pdo,$q,100):[];$count=(int)$pdo->query('SELECT COUNT(*) FROM '.table('smart_search_index'))->fetchColumn();}
+catch(Throwable $e){$searchError=$e->getMessage();$count=0;}
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Universal ERP Search</div><h2 class="h4 mb-1">Smart Search</h2><p class="text-secondary mb-0">Search products, orders, customers, invoices, and job cards from one index.</p></div><form method="post"><button class="btn btn-brand">Rebuild Index</button></form></div><?php if($searchError): ?><div class="alert alert-warning">Search engine warning: <?php echo esc($searchError); ?>. Please click <strong>Rebuild Index</strong> once, then search again.</div><?php endif; ?><div class="card-admin p-3 mb-4"><form class="d-flex gap-2"><input class="form-control" name="q" value="<?php echo esc($q); ?>" placeholder="Search product, invoice, customer, order, job card..."><button class="btn btn-outline-primary">Search</button></form><div class="small text-secondary mt-2">Indexed records: <?php echo $count; ?></div></div><div class="table-wrap table-responsive"><table class="table align-middle"><thead><tr><th>Entity</th><th>Title</th><th>Summary</th><th>Status</th><th>Open</th></tr></thead><tbody><?php foreach($results as $row): ?><tr><td><span class="badge bg-secondary"><?php echo esc($row['entity_type']); ?></span></td><td><strong><?php echo esc($row['title']); ?></strong><div class="small text-secondary"><?php echo esc($row['keywords']); ?></div></td><td><?php echo esc($row['summary']); ?></td><td><?php echo esc($row['status']); ?></td><td><a class="btn btn-sm btn-outline-primary" href="<?php echo esc($row['url_path']); ?>">Open</a></td></tr><?php endforeach; ?><?php if($q!=='' && !$results): ?><tr><td colspan="5" class="text-secondary">No results found.</td></tr><?php endif; ?></tbody></table></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

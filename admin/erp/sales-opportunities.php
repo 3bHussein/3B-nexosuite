@@ -1,0 +1,39 @@
+<?php
+$pageTitle='Sales Opportunities 2.0';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('sales_opportunities_2');
+$pdo=getDB();$scope=operationalScope($pdo);
+$stages=$pdo->query('SELECT * FROM '.table('sales_pipeline_stages').' WHERE status="active" ORDER BY sort_order')->fetchAll();
+$leads=$pdo->query('SELECT id,name,company,estimated_value,probability FROM '.table('crm_leads').' WHERE converted_customer_id IS NULL ORDER BY created_at DESC LIMIT 300')->fetchAll();
+$customers=$pdo->query('SELECT id,customer_code,company_name,contact_name FROM '.table('customers').' WHERE status="active" ORDER BY created_at DESC LIMIT 300')->fetchAll();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    $action=(string)($_POST['action']??'');
+    if($action==='create'){
+      $stageId=(int)$_POST['stage_id'];$prob=(int)($_POST['probability']??0);$value=(float)($_POST['value_amount']??0);
+      $number=nextScopedDocumentNumber($pdo,'sales_opportunity',setting('sales_opportunity_prefix','OPP'),$scope);
+      $pdo->prepare('INSERT INTO '.table('sales_opportunities').' (company_id,branch_id,opportunity_number,lead_id,customer_id,stage_id,owner_user_id,title,source,value_amount,probability,weighted_value,expected_close_date,status,next_follow_up,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,"open",?,?)')->execute([
+        $scope['company_id']?:null,$scope['branch_id']?:null,$number,(int)$_POST['lead_id']?:null,(int)$_POST['customer_id']?:null,$stageId?:null,(int)($_POST['owner_user_id']??0)?:null,trim((string)$_POST['title']),trim((string)$_POST['source']),$value,$prob,round($value*$prob/100,2),trim((string)$_POST['expected_close_date'])?:null,trim((string)$_POST['next_follow_up'])?:null,trim((string)$_POST['notes'])
+      ]);
+      flash('success','Opportunity created.');
+    }elseif($action==='move'){
+      $stage=$pdo->prepare('SELECT probability,is_won,is_lost FROM '.table('sales_pipeline_stages').' WHERE id=?');$stage->execute([(int)$_POST['stage_id']]);$s=$stage->fetch();
+      $status=!empty($s['is_won'])?'won':(!empty($s['is_lost'])?'lost':'open');
+      $prob=(int)($s['probability']??0);
+      $opp=$pdo->prepare('SELECT value_amount FROM '.table('sales_opportunities').' WHERE id=?');$opp->execute([(int)$_POST['id']]);$value=(float)$opp->fetchColumn();
+      $pdo->prepare('UPDATE '.table('sales_opportunities').' SET stage_id=?,probability=?,weighted_value=?,status=?,last_activity_at=NOW() WHERE id=?')->execute([(int)$_POST['stage_id'],$prob,round($value*$prob/100,2),$status,(int)$_POST['id']]);
+      flash('success','Opportunity stage updated.');
+    }elseif($action==='touchpoint'){
+      createCrmTouchpoint($pdo,['opportunity_id'=>(int)$_POST['opportunity_id'],'touchpoint_type'=>trim((string)$_POST['touchpoint_type']),'subject'=>trim((string)$_POST['subject']),'notes'=>trim((string)$_POST['notes']),'next_follow_up'=>trim((string)$_POST['next_follow_up']),'outcome'=>trim((string)$_POST['outcome'])]);
+      $pdo->prepare('UPDATE '.table('sales_opportunities').' SET last_activity_at=NOW(),next_follow_up=? WHERE id=?')->execute([trim((string)$_POST['next_follow_up'])?:null,(int)$_POST['opportunity_id']]);
+      flash('success','Touchpoint saved.');
+    }
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'sales-opportunities']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/sales-opportunities.php');
+}
+$opps=$pdo->query('SELECT o.*,s.stage_name,l.name lead_name,c.company_name,c.contact_name FROM '.table('sales_opportunities').' o LEFT JOIN '.table('sales_pipeline_stages').' s ON s.id=o.stage_id LEFT JOIN '.table('crm_leads').' l ON l.id=o.lead_id LEFT JOIN '.table('customers').' c ON c.id=o.customer_id ORDER BY o.created_at DESC LIMIT 250')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Opportunity Board</div><h2 class="h4 mb-1">Sales Opportunities 2.0</h2><p class="text-secondary mb-0">Create opportunities, move stages, capture touchpoints, and control weighted pipeline value.</p></div></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4 mb-4"><input type="hidden" name="action" value="create"><h2 class="h5 mb-3">Create Opportunity</h2><input class="form-control mb-2" name="title" placeholder="Opportunity title" required><select class="form-select mb-2" name="lead_id"><option value="0">No lead</option><?php foreach($leads as $l): ?><option value="<?php echo (int)$l['id']; ?>"><?php echo esc($l['name'].' · '.$l['company']); ?></option><?php endforeach; ?></select><select class="form-select mb-2" name="customer_id"><option value="0">No customer</option><?php foreach($customers as $c): ?><option value="<?php echo (int)$c['id']; ?>"><?php echo esc($c['customer_code'].' · '.($c['company_name']?:$c['contact_name'])); ?></option><?php endforeach; ?></select><select class="form-select mb-2" name="stage_id"><?php foreach($stages as $s): ?><option value="<?php echo (int)$s['id']; ?>"><?php echo esc($s['stage_name']); ?></option><?php endforeach; ?></select><input class="form-control mb-2" name="source" placeholder="Source"><input class="form-control mb-2" type="number" step="0.01" name="value_amount" placeholder="Value"><input class="form-control mb-2" type="number" name="probability" placeholder="Probability"><input class="form-control mb-2" type="date" name="expected_close_date"><input class="form-control mb-2" type="date" name="next_follow_up"><textarea class="form-control mb-3" name="notes" rows="3"></textarea><button class="btn btn-brand w-100">Create</button></form><form method="post" class="card-admin p-4"><input type="hidden" name="action" value="touchpoint"><h2 class="h5 mb-3">Add Touchpoint</h2><select class="form-select mb-2" name="opportunity_id"><?php foreach($opps as $o): ?><option value="<?php echo (int)$o['id']; ?>"><?php echo esc($o['opportunity_number'].' · '.$o['title']); ?></option><?php endforeach; ?></select><input class="form-control mb-2" name="touchpoint_type" value="call"><input class="form-control mb-2" name="subject" placeholder="Subject"><textarea class="form-control mb-2" name="notes" rows="3"></textarea><input class="form-control mb-2" type="date" name="next_follow_up"><input class="form-control mb-3" name="outcome" placeholder="Outcome"><button class="btn btn-outline-primary w-100">Save Touchpoint</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive"><table class="table align-middle"><thead><tr><th>Opportunity</th><th>Stage</th><th>Value</th><th>Weighted</th><th>Follow-up</th><th>Move</th></tr></thead><tbody><?php foreach($opps as $o): ?><tr><td><strong><?php echo esc($o['opportunity_number']); ?></strong><div class="small text-secondary"><?php echo esc($o['title']); ?></div><div class="small"><?php echo esc($o['lead_name']?:($o['company_name']?:$o['contact_name'])); ?></div></td><td><span class="badge bg-<?php echo esc(statusTone($o['status'])); ?>"><?php echo esc($o['stage_name']?:$o['status']); ?></span></td><td><?php echo money($o['value_amount']); ?></td><td><?php echo money($o['weighted_value']); ?></td><td><?php echo esc($o['next_follow_up']); ?></td><td><form method="post" class="d-flex gap-1"><input type="hidden" name="action" value="move"><input type="hidden" name="id" value="<?php echo (int)$o['id']; ?>"><select class="form-select form-select-sm" name="stage_id"><?php foreach($stages as $s): ?><option value="<?php echo (int)$s['id']; ?>" <?php echo (int)$o['stage_id']===(int)$s['id']?'selected':''; ?>><?php echo esc($s['stage_name']); ?></option><?php endforeach; ?></select><button class="btn btn-sm btn-outline-primary">Save</button></form></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>
