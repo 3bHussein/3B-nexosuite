@@ -1,0 +1,8 @@
+<?php
+require_once dirname(__DIR__) . '/includes/functions.php';
+employeePortalGuard();$user=currentUser();$pdo=getDB();$employee=employeeForCurrentUser($pdo,$user);if(!$employee){siteHeader('My Payslips','login');echo '<div class="alert alert-warning">No employee profile is linked to your email.</div>';siteFooter();exit;}
+$items=$pdo->prepare('SELECT pri.*,pr.payroll_number,pp.period_name,pp.start_date,pp.end_date FROM '.table('payroll_run_items').' pri LEFT JOIN '.table('payroll_runs').' pr ON pr.id=pri.payroll_run_id LEFT JOIN '.table('payroll_periods').' pp ON pp.id=pr.payroll_period_id WHERE pri.employee_id=? AND pr.status IN ("approved","posted") ORDER BY pr.created_at DESC');$items->execute([(int)$employee['id']]);$items=$items->fetchAll();
+siteHeader('My Payslips','login');
+?>
+<h1 class="mb-4">My Payslips</h1><div class="table-card table-responsive"><table class="table align-middle"><thead><tr><th>Period</th><th>Basic</th><th>Allowances</th><th>Overtime</th><th>Gross</th><th>Deductions</th><th>Net</th></tr></thead><tbody><?php foreach($items as $i): ?><tr><td><strong><?php echo esc($i['period_name']?:$i['payroll_number']); ?></strong><div class="small text-secondary"><?php echo esc($i['start_date'].' → '.$i['end_date']); ?></div></td><td><?php echo money($i['basic_salary']); ?></td><td><?php echo money($i['allowances']); ?></td><td><?php echo money($i['overtime_amount']); ?></td><td><?php echo money($i['gross_pay']); ?></td><td><?php echo money($i['deductions']); ?></td><td><strong><?php echo money($i['net_pay']); ?></strong></td></tr><?php endforeach; ?><?php if(!$items): ?><tr><td colspan="7" class="text-secondary">No published payslips yet.</td></tr><?php endif; ?></tbody></table></div>
+<?php siteFooter(); ?>
