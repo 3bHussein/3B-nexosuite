@@ -1,0 +1,13 @@
+<?php
+$pageTitle='Credit Notes';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('accounting');
+$pdo=getDB();
+$rows=$pdo->query('SELECT n.*,c.customer_code,i.invoice_number FROM ' . table('credit_notes') . ' n LEFT JOIN ' . table('customers') . ' c ON c.id=n.customer_id LEFT JOIN ' . table('invoices') . ' i ON i.id=n.invoice_id ORDER BY n.created_at DESC,n.id DESC')->fetchAll();
+$totals=$pdo->query('SELECT status,COUNT(*) total,COALESCE(SUM(total),0) amount FROM ' . table('credit_notes') . ' GROUP BY status')->fetchAll(PDO::FETCH_UNIQUE|PDO::FETCH_ASSOC);
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4"><div><div class="erp-kicker">AR Adjustment</div><h2 class="h4 mb-1">Credit Notes</h2><p class="text-secondary mb-0">Customer credits reduce receivables and reverse revenue / VAT when approved.</p></div><a class="btn btn-brand" href="<?php echo esc(ADMIN_URL); ?>/erp/create-credit-note.php">Create Credit Note</a></div>
+<div class="row g-4 mb-4"><?php foreach(['draft'=>'Draft','approved'=>'Approved'] as $key=>$label): $item=$totals[$key]??['total'=>0,'amount'=>0]; ?><div class="col-md-6"><div class="card-admin p-4"><div class="erp-kicker"><?php echo esc($label); ?></div><div class="metric-sm"><?php echo (int)$item['total']; ?> · <?php echo money($item['amount']); ?></div></div></div><?php endforeach; ?></div>
+<div class="table-wrap table-responsive"><table class="table align-middle"><thead><tr><th>Credit Note</th><th>Customer</th><th>Invoice</th><th>Total</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody><?php foreach($rows as $row): ?><tr><td><strong><?php echo esc($row['credit_note_number']); ?></strong></td><td><?php echo esc(($row['customer_code']?$row['customer_code'].' · ':'').$row['customer_name']); ?></td><td><?php echo esc($row['invoice_number'] ?: 'Unapplied'); ?></td><td><?php echo money($row['total']); ?></td><td><?php echo esc($row['issue_date']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($row['status'])); ?>"><?php echo esc($row['status']); ?></span></td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?php echo esc(ADMIN_URL); ?>/erp/view-credit-note.php?id=<?php echo (int)$row['id']; ?>">View</a></td></tr><?php endforeach; ?><?php if(!$rows): ?><tr><td colspan="7" class="text-secondary">No credit notes created yet.</td></tr><?php endif; ?></tbody></table></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

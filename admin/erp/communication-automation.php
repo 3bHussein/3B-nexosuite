@@ -1,0 +1,25 @@
+<?php
+$pageTitle='Communication Automation';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('communication_automation');
+$pdo=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    $action=(string)($_POST['action']??'');
+    if($action==='rule'){
+      $code=preg_replace('/[^A-Z0-9_\\-]/','',strtoupper((string)$_POST['rule_code']));
+      $pdo->prepare('INSERT INTO '.table('communication_automation_rules').' (rule_code,rule_name,trigger_event,channel,template_key,target_type,status,conditions_json) VALUES (?,?,?,?,?,?,"active",?)')->execute([$code,trim((string)$_POST['rule_name']),trim((string)$_POST['trigger_event']),trim((string)$_POST['channel']),trim((string)$_POST['template_key']),trim((string)$_POST['target_type']),trim((string)$_POST['conditions_json'])?:'{}']);
+      flash('success','Communication rule created.');
+    }elseif($action==='run'){
+      runCommunicationRule($pdo,(int)$_POST['rule_id'],trim((string)$_POST['reference_type']),(int)$_POST['reference_id']?:null);flash('success','Communication rule executed.');
+    }
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'communication-automation']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/communication-automation.php');
+}
+$rules=$pdo->query('SELECT * FROM '.table('communication_automation_rules').' ORDER BY status DESC,rule_name')->fetchAll();
+$runs=$pdo->query('SELECT r.*,rule.rule_code,rule.rule_name FROM '.table('communication_automation_runs').' r LEFT JOIN '.table('communication_automation_rules').' rule ON rule.id=r.communication_automation_rule_id ORDER BY r.created_at DESC LIMIT 100')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Email / WhatsApp / Webhook Rules</div><h2 class="h4 mb-1">Communication Automation</h2><p class="text-secondary mb-0">Map ERP events to customer communication, WhatsApp messages, email templates, or webhooks.</p></div><a class="btn btn-outline-primary" href="<?php echo esc(ADMIN_URL); ?>/erp/email-templates.php"><?php echo t('Email Templates', 'قوالب البريد'); ?></a></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><input type="hidden" name="action" value="rule"><h2 class="h5 mb-3">Create Rule</h2><input class="form-control mb-2" name="rule_code" placeholder="RULE-CODE"><input class="form-control mb-2" name="rule_name" placeholder="Rule name"><input class="form-control mb-2" name="trigger_event" placeholder="order.created"><select class="form-select mb-2" name="channel"><option value="email">Email</option><option value="whatsapp">WhatsApp</option><option value="webhook">Webhook</option></select><input class="form-control mb-2" name="template_key" placeholder="template key / event"><input class="form-control mb-2" name="target_type" placeholder="customer / lead / webhook"><textarea class="form-control mb-3" name="conditions_json" rows="3">{}</textarea><button class="btn btn-brand w-100">Create Rule</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive mb-4"><h2 class="h5 mb-3">Rules</h2><table class="table align-middle"><thead><tr><th>Rule</th><th>Trigger</th><th>Channel</th><th>Status</th><th>Run</th></tr></thead><tbody><?php foreach($rules as $rule): ?><tr><td><strong><?php echo esc($rule['rule_code']); ?></strong><div class="small text-secondary"><?php echo esc($rule['rule_name']); ?></div></td><td><?php echo esc($rule['trigger_event']); ?></td><td><?php echo esc($rule['channel']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($rule['status'])); ?>"><?php echo esc($rule['status']); ?></span></td><td><form method="post" class="d-flex gap-1"><input type="hidden" name="action" value="run"><input type="hidden" name="rule_id" value="<?php echo (int)$rule['id']; ?>"><input class="form-control form-control-sm" name="reference_type" value="manual"><input class="form-control form-control-sm" type="number" name="reference_id" value="0"><button class="btn btn-sm btn-success">Run</button></form></td></tr><?php endforeach; ?></tbody></table></div><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Run History</h2><table class="table"><thead><tr><th>Run</th><th>Rule</th><th>Channel</th><th>Status</th><th>Message</th></tr></thead><tbody><?php foreach($runs as $run): ?><tr><td><strong><?php echo esc($run['run_number']); ?></strong><div class="small text-secondary"><?php echo esc($run['created_at']); ?></div></td><td><?php echo esc($run['rule_code']); ?></td><td><?php echo esc($run['channel']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($run['status'])); ?>"><?php echo esc($run['status']); ?></span></td><td><?php echo esc($run['message']); ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

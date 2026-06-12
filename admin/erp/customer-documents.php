@@ -1,0 +1,12 @@
+<?php
+$pageTitle='Customer Documents';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('customer_documents');
+$pdo=getDB();
+$docs=$pdo->query('SELECT d.*,u.email FROM '.table('customer_document_uploads').' d LEFT JOIN '.table('users').' u ON u.id=d.user_id ORDER BY d.created_at DESC LIMIT 250')->fetchAll();
+$assetDocs=$pdo->query('SELECT ad.*,ca.asset_name,u.email FROM '.table('customer_asset_documents').' ad LEFT JOIN '.table('customer_assets').' ca ON ca.id=ad.customer_asset_id LEFT JOIN '.table('users').' u ON u.id=ad.user_id ORDER BY ad.created_at DESC LIMIT 250')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Customer Files</div><h2 class="h4 mb-1">Customer Documents</h2><p class="text-secondary mb-0">Review uploaded invoice, request, and asset documents.</p></div></div>
+<div class="row g-4"><div class="col-xl-6"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">General Documents</h2><table class="table"><thead><tr><th>File</th><th>Customer</th><th>Type</th><th>Status</th></tr></thead><tbody><?php foreach($docs as $d): ?><tr><td><strong><?php echo esc($d['file_name']); ?></strong><div class="small text-secondary"><?php echo esc($d['stored_path']); ?></div></td><td><?php echo esc($d['email']); ?></td><td><?php echo esc($d['document_type']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($d['status'])); ?>"><?php echo esc($d['status']); ?></span></td></tr><?php endforeach; ?></tbody></table></div></div><div class="col-xl-6"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Asset Documents</h2><table class="table"><thead><tr><th>File</th><th>Asset</th><th>Customer</th><th>Type</th></tr></thead><tbody><?php foreach($assetDocs as $d): ?><tr><td><strong><?php echo esc($d['file_name']); ?></strong><div class="small text-secondary"><?php echo esc($d['stored_path']); ?></div></td><td><?php echo esc($d['asset_name']); ?></td><td><?php echo esc($d['email']); ?></td><td><?php echo esc($d['document_type']); ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

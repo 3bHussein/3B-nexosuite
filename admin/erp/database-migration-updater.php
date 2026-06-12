@@ -1,0 +1,22 @@
+<?php
+$pageTitle='Database Migration Updater';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('database_migration_updater');
+$pdo=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    $action=(string)($_POST['action']??'schema');
+    if($action==='schema'){$r=p34RunSchemaCheck($pdo);flash('success',$r['summary']);}
+    elseif($action==='backup'){p34CreateUpgradeBackup($pdo,'pre_migration','Manual pre-migration backup placeholder.');flash('success','Backup created.');}
+    elseif($action==='mark'){$pdo->prepare('INSERT INTO '.table('migration_history').' (migration_key,version_label,description) VALUES (?,?,?) ON DUPLICATE KEY UPDATE version_label=VALUES(version_label),description=VALUES(description)')->execute([trim((string)$_POST['migration_key']),trim((string)$_POST['version_label']),trim((string)$_POST['description'])]);flash('success','Migration marker saved.');}
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'database-migration-updater']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/database-migration-updater.php');
+}
+$checks=$pdo->query('SELECT * FROM '.table('production_schema_checks').' ORDER BY created_at DESC LIMIT 50')->fetchAll();
+$migrations=$pdo->query('SELECT * FROM '.table('migration_history').' ORDER BY installed_at DESC LIMIT 100')->fetchAll();
+$backups=$pdo->query('SELECT * FROM '.table('production_upgrade_backups').' ORDER BY created_at DESC LIMIT 50')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Safe Upgrade Mode</div><h2 class="h4 mb-1">Database Migration Updater</h2><p class="text-secondary mb-0">Track migrations, run schema checks and create pre-upgrade backup placeholders.</p></div><div class="d-flex gap-2"><form method="post"><button name="action" value="schema" class="btn btn-brand">Run Schema Check</button></form><form method="post"><button name="action" value="backup" class="btn btn-outline-primary">Backup Before Upgrade</button></form></div></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><input type="hidden" name="action" value="mark"><h2 class="h5 mb-3">Mark Migration</h2><input class="form-control mb-2" name="migration_key" placeholder="priority_34_installed"><input class="form-control mb-2" name="version_label" value="<?php echo esc(INSTALLER_VERSION); ?>"><textarea class="form-control mb-3" name="description" rows="3">Manual migration marker.</textarea><button class="btn btn-outline-primary w-100">Save Marker</button></form><div class="table-wrap table-responsive mt-4"><h2 class="h6 mb-3">Backups</h2><table class="table table-sm"><tbody><?php foreach($backups as $b): ?><tr><td><strong><?php echo esc($b['backup_number']); ?></strong><div class="small text-secondary"><?php echo esc($b['file_name'].' · '.$b['status']); ?></div></td></tr><?php endforeach; ?></tbody></table></div></div><div class="col-xl-8"><div class="table-wrap table-responsive mb-4"><h2 class="h5 mb-3">Schema Checks</h2><table class="table"><thead><tr><th>Check</th><th>Tables</th><th>Columns</th><th>Missing</th><th>Status</th></tr></thead><tbody><?php foreach($checks as $c): ?><tr><td><strong><?php echo esc($c['check_number']); ?></strong><div class="small text-secondary"><?php echo esc($c['summary']); ?></div></td><td><?php echo (int)$c['tables_checked']; ?></td><td><?php echo (int)$c['columns_checked']; ?></td><td><?php echo (int)$c['missing_tables']; ?> / <?php echo (int)$c['missing_columns']; ?></td><td><?php echo esc($c['status']); ?></td></tr><?php endforeach; ?></tbody></table></div><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Migration History</h2><table class="table"><thead><tr><th>Key</th><th>Version</th><th>Description</th><th>Installed</th></tr></thead><tbody><?php foreach($migrations as $m): ?><tr><td><strong><?php echo esc($m['migration_key']); ?></strong></td><td><?php echo esc($m['version_label']); ?></td><td><?php echo esc($m['description']); ?></td><td><?php echo esc($m['installed_at']); ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

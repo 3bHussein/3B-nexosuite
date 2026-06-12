@@ -1,0 +1,29 @@
+<?php
+$pageTitle='CRM Automation';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('crm_automation');
+$pdo=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    $action=(string)($_POST['action']??'');
+    if($action==='create_rule'){
+      $code=preg_replace('/[^A-Z0-9_]/','',strtoupper((string)$_POST['rule_code']));
+      $stmt=$pdo->prepare('INSERT INTO '.table('crm_automation_rules').' (rule_code,rule_name,trigger_event,condition_json,action_json,frequency,status) VALUES (?,?,?,?,?,?,?)');
+      $stmt->execute([$code,trim((string)$_POST['rule_name']),trim((string)$_POST['trigger_event']),trim((string)$_POST['condition_json']),trim((string)$_POST['action_json']),trim((string)$_POST['frequency']),'active']);
+      flash('success','CRM automation rule created.');
+    }elseif($action==='run_rule'){
+      if(setting('crm_automation_enabled','1')!=='1'){throw new RuntimeException('CRM automation is disabled in settings.');}
+      $result=runCrmAutomationRule($pdo,(int)$_POST['rule_id']);flash('success','CRM automation completed: '.$result['summary']);
+    }elseif($action==='toggle_rule'){
+      $pdo->prepare('UPDATE '.table('crm_automation_rules').' SET status=CASE WHEN status="active" THEN "inactive" ELSE "active" END WHERE id=?')->execute([(int)$_POST['rule_id']]);flash('success','Rule status updated.');
+    }
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'crm-automation']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/crm-automation.php');
+}
+$rules=$pdo->query('SELECT * FROM '.table('crm_automation_rules').' ORDER BY status DESC,created_at DESC')->fetchAll();
+$runs=$pdo->query('SELECT r.*,a.rule_code,a.rule_name FROM '.table('crm_automation_runs').' r LEFT JOIN '.table('crm_automation_rules').' a ON a.id=r.crm_automation_rule_id ORDER BY r.created_at DESC LIMIT 100')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Sales Automation</div><h2 class="h4 mb-1">CRM Automation</h2><p class="text-secondary mb-0">Run safe manual CRM automation for follow-ups, high-value lead conversion, and sales alerts.</p></div><a class="btn btn-outline-primary" href="<?php echo esc(ADMIN_URL); ?>/erp/workflow-automation.php">ERP Automation</a></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><input type="hidden" name="action" value="create_rule"><h2 class="h5 mb-3">Create CRM Rule</h2><label class="form-label">Rule Code</label><input class="form-control mb-2" name="rule_code" placeholder="CRM_FOLLOWUP_DUE"><label class="form-label">Rule Name</label><input class="form-control mb-2" name="rule_name"><label class="form-label">Trigger</label><select class="form-select mb-2" name="trigger_event"><option value="lead_followup_due">Lead Follow-up Due</option><option value="high_value_lead">High Value Lead → Opportunity</option></select><label class="form-label">Frequency</label><select class="form-select mb-2" name="frequency"><option value="manual">Manual</option><option value="daily">Daily</option></select><label class="form-label">Condition JSON</label><textarea class="form-control mb-2" name="condition_json" rows="3">{}</textarea><label class="form-label">Action JSON</label><textarea class="form-control mb-3" name="action_json" rows="3">{}</textarea><button class="btn btn-brand w-100">Create Rule</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive mb-4"><div class="table-toolbar"><div><div class="erp-kicker">Rules</div><h2 class="h5 mb-0">CRM Automation Rules</h2></div></div><table class="table align-middle"><thead><tr><th>Rule</th><th>Trigger</th><th>Frequency</th><th>Status</th><th>Last Run</th><th></th></tr></thead><tbody><?php foreach($rules as $rule): ?><tr><td><strong><?php echo esc($rule['rule_code']); ?></strong><div class="small text-secondary"><?php echo esc($rule['rule_name']); ?></div></td><td><?php echo esc($rule['trigger_event']); ?></td><td><?php echo esc($rule['frequency']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($rule['status'])); ?>"><?php echo esc($rule['status']); ?></span></td><td><?php echo esc($rule['last_run_at']?:'Never'); ?></td><td class="text-end"><form method="post" class="d-inline"><input type="hidden" name="action" value="run_rule"><input type="hidden" name="rule_id" value="<?php echo (int)$rule['id']; ?>"><button class="btn btn-sm btn-success">Run</button></form> <form method="post" class="d-inline"><input type="hidden" name="action" value="toggle_rule"><input type="hidden" name="rule_id" value="<?php echo (int)$rule['id']; ?>"><button class="btn btn-sm btn-outline-secondary">Toggle</button></form></td></tr><?php endforeach; ?></tbody></table></div><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Run History</h2><table class="table"><thead><tr><th>Run</th><th>Rule</th><th>Status</th><th>Checked</th><th>Actions</th><th>Summary</th></tr></thead><tbody><?php foreach($runs as $run): ?><tr><td><strong><?php echo esc($run['run_number']); ?></strong><div class="small text-secondary"><?php echo esc($run['created_at']); ?></div></td><td><?php echo esc($run['rule_code']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($run['status'])); ?>"><?php echo esc($run['status']); ?></span></td><td><?php echo (int)$run['records_checked']; ?></td><td><?php echo (int)$run['actions_created']; ?></td><td><?php echo esc($run['summary']); ?></td></tr><?php endforeach; ?><?php if(!$runs): ?><tr><td colspan="6" class="text-secondary">No runs yet.</td></tr><?php endif; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

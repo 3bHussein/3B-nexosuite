@@ -1,0 +1,20 @@
+<?php
+$pageTitle='Customer Disputes';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('customer_disputes');
+$pdo=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    $user=currentUser();$type=(string)($_POST['type']??'dispute');
+    if($type==='dispute'){$pdo->prepare('UPDATE '.table('customer_invoice_disputes').' SET status="resolved",resolved_by=?,resolved_at=NOW() WHERE id=?')->execute([(int)($user['id']??0)?:null,(int)$_POST['id']]);flash('success','Dispute resolved.');}
+    else{$pdo->prepare('UPDATE '.table('customer_payment_promises').' SET status=? WHERE id=?')->execute([trim((string)$_POST['status']),(int)$_POST['id']]);flash('success','Payment promise updated.');}
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'customer-disputes']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/customer-disputes.php');
+}
+$disputes=$pdo->query('SELECT d.*,i.invoice_number,u.email FROM '.table('customer_invoice_disputes').' d LEFT JOIN '.table('invoices').' i ON i.id=d.invoice_id LEFT JOIN '.table('users').' u ON u.id=d.user_id ORDER BY d.created_at DESC LIMIT 150')->fetchAll();
+$promises=$pdo->query('SELECT p.*,i.invoice_number,u.email FROM '.table('customer_payment_promises').' p LEFT JOIN '.table('invoices').' i ON i.id=p.invoice_id LEFT JOIN '.table('users').' u ON u.id=p.user_id ORDER BY p.created_at DESC LIMIT 150')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Invoice Experience</div><h2 class="h4 mb-1">Customer Disputes & Payment Promises</h2><p class="text-secondary mb-0">Review customer invoice disputes and payment commitments from the portal.</p></div></div>
+<div class="row g-4"><div class="col-xl-6"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Invoice Disputes</h2><table class="table"><thead><tr><th>Dispute</th><th>Invoice</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody><?php foreach($disputes as $d): ?><tr><td><strong><?php echo esc($d['dispute_number']); ?></strong><div class="small text-secondary"><?php echo esc($d['email']); ?></div></td><td><?php echo esc($d['invoice_number']); ?></td><td><?php echo esc($d['reason']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($d['status'])); ?>"><?php echo esc($d['status']); ?></span></td><td><?php if($d['status']!=='resolved'): ?><form method="post"><input type="hidden" name="type" value="dispute"><input type="hidden" name="id" value="<?php echo (int)$d['id']; ?>"><button class="btn btn-sm btn-success">Resolve</button></form><?php endif; ?></td></tr><?php endforeach; ?></tbody></table></div></div><div class="col-xl-6"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Payment Promises</h2><table class="table"><thead><tr><th>Promise</th><th>Invoice</th><th>Amount</th><th>Date</th><th>Status</th></tr></thead><tbody><?php foreach($promises as $p): ?><tr><td><strong><?php echo esc($p['promise_number']); ?></strong><div class="small text-secondary"><?php echo esc($p['email']); ?></div></td><td><?php echo esc($p['invoice_number']); ?></td><td><?php echo money($p['promised_amount']); ?></td><td><?php echo esc($p['promised_date']); ?></td><td><form method="post" class="d-flex gap-1"><input type="hidden" name="type" value="promise"><input type="hidden" name="id" value="<?php echo (int)$p['id']; ?>"><select class="form-select form-select-sm" name="status"><option <?php echo $p['status']==='open'?'selected':''; ?>>open</option><option <?php echo $p['status']==='paid'?'selected':''; ?>>paid</option><option <?php echo $p['status']==='missed'?'selected':''; ?>>missed</option></select><button class="btn btn-sm btn-outline-primary">Save</button></form></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

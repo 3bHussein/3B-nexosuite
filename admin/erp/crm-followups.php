@@ -1,0 +1,21 @@
+<?php
+$pageTitle='CRM Follow-ups';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('crm_followups');
+$pdo=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    $action=(string)($_POST['action']??'');
+    if($action==='generate'){$n=generateLeadFollowupTasks($pdo);flash('success','Generated '.$n.' lead follow-up tasks.');}
+    elseif($action==='complete'){completeCrmFollowupTask($pdo,(int)$_POST['id'],trim((string)$_POST['notes']));flash('success','Task completed.');}
+    elseif($action==='manual'){createCrmFollowupTask($pdo,$_POST);flash('success','Manual follow-up task created.');}
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'crm-followups']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/crm-followups.php');
+}
+$leads=$pdo->query('SELECT id,name,company FROM '.table('crm_leads').' WHERE converted_customer_id IS NULL ORDER BY created_at DESC LIMIT 300')->fetchAll();
+$tasks=$pdo->query('SELECT t.*,l.name lead_name,c.company_name,q.quotation_number,o.opportunity_number FROM '.table('crm_followup_tasks').' t LEFT JOIN '.table('crm_leads').' l ON l.id=t.lead_id LEFT JOIN '.table('customers').' c ON c.id=t.customer_id LEFT JOIN '.table('quotations').' q ON q.id=t.quotation_id LEFT JOIN '.table('sales_opportunities').' o ON o.id=t.opportunity_id ORDER BY FIELD(t.status,"open","waiting","completed"),COALESCE(t.due_date,"9999-12-31") ASC,t.created_at DESC LIMIT 300')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Task Center</div><h2 class="h4 mb-1">CRM Follow-ups</h2><p class="text-secondary mb-0">Generate, assign, and complete follow-up tasks from leads, quotes, customers, and opportunities.</p></div><form method="post"><input type="hidden" name="action" value="generate"><button class="btn btn-brand">Generate Due Lead Tasks</button></form></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><input type="hidden" name="action" value="manual"><h2 class="h5 mb-3">Manual Task</h2><select class="form-select mb-2" name="lead_id"><option value="0">No lead</option><?php foreach($leads as $l): ?><option value="<?php echo (int)$l['id']; ?>"><?php echo esc($l['name'].' · '.$l['company']); ?></option><?php endforeach; ?></select><input class="form-control mb-2" name="related_type" value="lead"><input class="form-control mb-2" name="subject" placeholder="Subject" required><select class="form-select mb-2" name="task_type"><option>call</option><option>email</option><option>whatsapp</option><option>meeting</option></select><select class="form-select mb-2" name="priority"><option>low</option><option selected>medium</option><option>high</option></select><input class="form-control mb-2" type="date" name="due_date"><textarea class="form-control mb-3" name="notes" rows="3"></textarea><button class="btn btn-outline-primary w-100">Create Task</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive"><table class="table align-middle"><thead><tr><th>Task</th><th>Related</th><th>Due</th><th>Priority</th><th>Status</th><th>Complete</th></tr></thead><tbody><?php foreach($tasks as $t): ?><tr><td><strong><?php echo esc($t['task_number']); ?></strong><div class="small text-secondary"><?php echo esc($t['subject']); ?></div></td><td><?php echo esc($t['lead_name']?:($t['company_name']?:($t['quotation_number']?:$t['opportunity_number']))); ?></td><td><?php echo esc($t['due_date']); ?></td><td><?php echo esc($t['priority']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($t['status'])); ?>"><?php echo esc($t['status']); ?></span></td><td><?php if($t['status']!=='completed'): ?><form method="post" class="d-flex gap-1"><input type="hidden" name="action" value="complete"><input type="hidden" name="id" value="<?php echo (int)$t['id']; ?>"><input class="form-control form-control-sm" name="notes" placeholder="Result"><button class="btn btn-sm btn-success">Done</button></form><?php endif; ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

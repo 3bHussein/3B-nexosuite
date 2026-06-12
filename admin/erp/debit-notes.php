@@ -1,0 +1,13 @@
+<?php
+$pageTitle='Supplier Debit Notes';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('accounting');
+$pdo=getDB();
+$rows=$pdo->query('SELECT n.*,s.supplier_code,e.expense_number FROM ' . table('debit_notes') . ' n LEFT JOIN ' . table('suppliers') . ' s ON s.id=n.supplier_id LEFT JOIN ' . table('expenses') . ' e ON e.id=n.expense_id ORDER BY n.created_at DESC,n.id DESC')->fetchAll();
+$totals=$pdo->query('SELECT status,COUNT(*) total,COALESCE(SUM(total),0) amount FROM ' . table('debit_notes') . ' GROUP BY status')->fetchAll(PDO::FETCH_UNIQUE|PDO::FETCH_ASSOC);
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4"><div><div class="erp-kicker">AP Adjustment</div><h2 class="h4 mb-1">Supplier Debit Notes</h2><p class="text-secondary mb-0">Debit notes reduce supplier payables and reverse expenses / input VAT when approved.</p></div><a class="btn btn-brand" href="<?php echo esc(ADMIN_URL); ?>/erp/create-debit-note.php">Create Debit Note</a></div>
+<div class="row g-4 mb-4"><?php foreach(['draft'=>'Draft','approved'=>'Approved'] as $key=>$label): $item=$totals[$key]??['total'=>0,'amount'=>0]; ?><div class="col-md-6"><div class="card-admin p-4"><div class="erp-kicker"><?php echo esc($label); ?></div><div class="metric-sm"><?php echo (int)$item['total']; ?> · <?php echo money($item['amount']); ?></div></div></div><?php endforeach; ?></div>
+<div class="table-wrap table-responsive"><table class="table align-middle"><thead><tr><th>Debit Note</th><th>Supplier</th><th>Expense</th><th>Total</th><th>Date</th><th>Status</th><th></th></tr></thead><tbody><?php foreach($rows as $row): ?><tr><td><strong><?php echo esc($row['debit_note_number']); ?></strong></td><td><?php echo esc(($row['supplier_code']?$row['supplier_code'].' · ':'').$row['supplier_name']); ?></td><td><?php echo esc($row['expense_number'] ?: 'Unapplied'); ?></td><td><?php echo money($row['total']); ?></td><td><?php echo esc($row['issue_date']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($row['status'])); ?>"><?php echo esc($row['status']); ?></span></td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="<?php echo esc(ADMIN_URL); ?>/erp/view-debit-note.php?id=<?php echo (int)$row['id']; ?>">View</a></td></tr><?php endforeach; ?><?php if(!$rows): ?><tr><td colspan="7" class="text-secondary">No supplier debit notes created yet.</td></tr><?php endif; ?></tbody></table></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

@@ -1,0 +1,27 @@
+<?php
+$pageTitle='Barcode / QR Workflows';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('barcode_qr');
+$pdo=getDB();
+$assets=$pdo->query('SELECT id,asset_name,make,model,vin,plate_number,serial_number FROM '.table('customer_assets').' ORDER BY created_at DESC LIMIT 300')->fetchAll();
+$jobs=$pdo->query('SELECT id,job_card_number,customer_name,plate_number,vin FROM '.table('job_cards').' ORDER BY created_at DESC LIMIT 300')->fetchAll();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    $action=(string)($_POST['action']??'scan');
+    if($action==='scan'){
+      logBarcodeScan($pdo,trim((string)$_POST['scan_value']),trim((string)$_POST['scan_type']),trim((string)$_POST['source_module']),trim((string)$_POST['reference_type']),(int)($_POST['reference_id']??0)?:null,'captured');
+      flash('success','Scan recorded.');
+    }elseif($action==='asset_qr'){
+      createAssetQrCode($pdo,(int)($_POST['customer_asset_id']??0)?:null,(int)($_POST['job_card_id']??0)?:null);
+      flash('success','Asset QR created.');
+    }
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'barcode-qr']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/barcode-qr.php');
+}
+$scans=$pdo->query('SELECT s.*,u.email scanned_by_email FROM '.table('barcode_scan_logs').' s LEFT JOIN '.table('users').' u ON u.id=s.scanned_by ORDER BY s.scanned_at DESC LIMIT 150')->fetchAll();
+$qrs=$pdo->query('SELECT q.*,ca.asset_name,ca.plate_number,jc.job_card_number FROM '.table('asset_qr_codes').' q LEFT JOIN '.table('customer_assets').' ca ON ca.id=q.customer_asset_id LEFT JOIN '.table('job_cards').' jc ON jc.id=q.job_card_id ORDER BY q.created_at DESC LIMIT 150')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Scan-to-Workflow</div><h2 class="h4 mb-1">Barcode / QR</h2><p class="text-secondary mb-0">Capture scan logs, issue asset QR codes, and connect mobile scans to jobs, assets, inventory, and service workflow.</p></div><a class="btn btn-outline-primary" href="<?php echo esc(ADMIN_URL); ?>/erp/technician-mobile.php"><?php echo t('Technician Mobile', 'موبايل الفني'); ?></a></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4 mb-4"><input type="hidden" name="action" value="scan"><h2 class="h5 mb-3">Record Scan</h2><input class="form-control mb-2" name="scan_value" placeholder="Scan value" required><select class="form-select mb-2" name="scan_type"><option value="qr">QR</option><option value="barcode">Barcode</option><option value="vin">VIN / serial</option></select><input class="form-control mb-2" name="source_module" value="manual"><select class="form-select mb-2" name="reference_type"><option value="job_card">Job Card</option><option value="asset">Asset</option><option value="product">Product</option><option value="dispatch">Dispatch</option></select><input class="form-control mb-3" type="number" name="reference_id" placeholder="Reference ID optional"><button class="btn btn-brand w-100">Save Scan</button></form><form method="post" class="card-admin p-4"><input type="hidden" name="action" value="asset_qr"><h2 class="h5 mb-3">Create Asset QR</h2><select class="form-select mb-2" name="customer_asset_id"><option value="0">No asset</option><?php foreach($assets as $a): ?><option value="<?php echo (int)$a['id']; ?>"><?php echo esc($a['asset_name'].' · '.$a['plate_number'].' · '.$a['vin']); ?></option><?php endforeach; ?></select><select class="form-select mb-3" name="job_card_id"><option value="0">No job card</option><?php foreach($jobs as $j): ?><option value="<?php echo (int)$j['id']; ?>"><?php echo esc($j['job_card_number'].' · '.$j['customer_name']); ?></option><?php endforeach; ?></select><button class="btn btn-outline-primary w-100">Generate QR</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive mb-4"><h2 class="h5 mb-3">Asset QR Codes</h2><table class="table"><thead><tr><th>QR</th><th>Asset / Job</th><th>Value</th><th>Status</th></tr></thead><tbody><?php foreach($qrs as $qr): ?><tr><td><strong><?php echo esc($qr['qr_number']); ?></strong></td><td><?php echo esc(($qr['asset_name']?:'Asset').' · '.($qr['job_card_number']?:'No job')); ?></td><td><code><?php echo esc($qr['qr_value']); ?></code><div class="small text-secondary"><?php echo esc($qr['qr_url']); ?></div></td><td><span class="badge bg-<?php echo esc(statusTone($qr['status'])); ?>"><?php echo esc($qr['status']); ?></span></td></tr><?php endforeach; ?></tbody></table></div><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Scan Log</h2><table class="table"><thead><tr><th>Scan</th><th>Type</th><th>Reference</th><th>User</th><th>Time</th></tr></thead><tbody><?php foreach($scans as $scan): ?><tr><td><code><?php echo esc($scan['scan_value']); ?></code></td><td><?php echo esc($scan['scan_type']); ?></td><td><?php echo esc($scan['reference_type'].' #'.$scan['reference_id']); ?></td><td><?php echo esc($scan['scanned_by_email']); ?></td><td><?php echo esc($scan['scanned_at']); ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

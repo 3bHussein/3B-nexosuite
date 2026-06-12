@@ -1,0 +1,19 @@
+<?php
+$pageTitle='Customer Sign-off';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('customer_signoff');
+$pdo=getDB();
+$jobs=$pdo->query('SELECT id,job_card_number,customer_name,customer_phone,status,plate_number FROM '.table('job_cards').' WHERE status IN ("in_progress","diagnosis","waiting_parts","completed") ORDER BY created_at DESC LIMIT 300')->fetchAll();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    createCustomerSignoff($pdo,(int)$_POST['job_card_id'],trim((string)$_POST['customer_name']),trim((string)$_POST['customer_phone']),trim((string)$_POST['signature_data']),max(0,min(5,(int)$_POST['rating'])),trim((string)$_POST['notes']));
+    flash('success','Customer sign-off captured and job marked completed.');
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'customer-signoff']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/customer-signoff.php');
+}
+$signoffs=$pdo->query('SELECT s.*,jc.job_card_number,jc.plate_number FROM '.table('field_customer_signoffs').' s LEFT JOIN '.table('job_cards').' jc ON jc.id=s.job_card_id ORDER BY s.created_at DESC LIMIT 150')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Completion Control</div><h2 class="h4 mb-1">Customer Sign-off</h2><p class="text-secondary mb-0">Capture customer approval, rating, and service completion confirmation from field or workshop mobile screens.</p></div><a class="btn btn-outline-primary" href="<?php echo esc(ADMIN_URL); ?>/erp/technician-mobile.php"><?php echo t('Technician Mobile', 'موبايل الفني'); ?></a></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><h2 class="h5 mb-3">Capture Sign-off</h2><label class="form-label">Job Card</label><select class="form-select mb-2" name="job_card_id"><?php foreach($jobs as $job): ?><option value="<?php echo (int)$job['id']; ?>"><?php echo esc($job['job_card_number'].' · '.$job['customer_name'].' · '.$job['plate_number']); ?></option><?php endforeach; ?></select><input class="form-control mb-2" name="customer_name" placeholder="Customer name"><input class="form-control mb-2" name="customer_phone" placeholder="Customer phone"><textarea class="form-control mb-2" name="signature_data" rows="2" placeholder="Typed signature / base64 signature / approval note"></textarea><label class="form-label">Rating</label><select class="form-select mb-2" name="rating"><option value="5">5 - Excellent</option><option value="4">4 - Good</option><option value="3">3 - Average</option><option value="2">2 - Poor</option><option value="1">1 - Bad</option></select><textarea class="form-control mb-3" name="notes" rows="3" placeholder="Completion notes"></textarea><button class="btn btn-brand w-100">Save Sign-off</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive"><table class="table align-middle"><thead><tr><th>Sign-off</th><th>Job</th><th>Customer</th><th>Rating</th><th>Status</th><th>Signed</th></tr></thead><tbody><?php foreach($signoffs as $s): ?><tr><td><strong><?php echo esc($s['signoff_number']); ?></strong></td><td><?php echo esc($s['job_card_number'].' · '.$s['plate_number']); ?></td><td><?php echo esc($s['customer_name']); ?><div class="small text-secondary"><?php echo esc($s['customer_phone']); ?></div></td><td><?php echo (int)$s['rating']; ?>/5</td><td><span class="badge bg-<?php echo esc(statusTone($s['status'])); ?>"><?php echo esc($s['status']); ?></span></td><td><?php echo esc($s['signed_at']); ?></td></tr><?php endforeach; ?><?php if(!$signoffs): ?><tr><td colspan="6" class="text-secondary">No sign-offs yet.</td></tr><?php endif; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

@@ -1,0 +1,21 @@
+<?php
+$pageTitle='AR/AP Aging';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('ar_ap_aging');
+$pdo=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    if(($_POST['action']??'')==='collections'){$created=generateCollectionTasks($pdo,trim((string)$_POST['snapshot_date']));flash('success','Generated '.$created.' collection tasks.');}
+    else{generateAgingSnapshots($pdo,trim((string)$_POST['snapshot_date']));flash('success','Aging snapshots generated.');}
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'ar-ap-aging']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/ar-ap-aging.php');
+}
+$ar=$pdo->query('SELECT * FROM '.table('ar_aging_snapshots').' ORDER BY snapshot_date DESC,id DESC LIMIT 20')->fetchAll();
+$ap=$pdo->query('SELECT * FROM '.table('ap_aging_snapshots').' ORDER BY snapshot_date DESC,id DESC LIMIT 20')->fetchAll();
+$tasks=$pdo->query('SELECT * FROM '.table('collection_tasks').' ORDER BY created_at DESC LIMIT 50')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Receivables & Payables</div><h2 class="h4 mb-1">AR/AP Aging & Collections</h2><p class="text-secondary mb-0">Generate aging snapshots and collection tasks for overdue invoices.</p></div></div>
+<form method="post" class="card-admin p-3 mb-4 d-flex flex-wrap gap-2 align-items-end"><div><label class="form-label">Snapshot Date</label><input class="form-control" type="date" name="snapshot_date" value="<?php echo date('Y-m-d'); ?>"></div><button class="btn btn-brand" name="action" value="aging">Generate Aging</button><button class="btn btn-outline-primary" name="action" value="collections">Generate Collection Tasks</button></form>
+<div class="row g-4"><div class="col-xl-6"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">AR Aging</h2><table class="table"><thead><tr><th>Date</th><th>Current</th><th>1-30</th><th>31-60</th><th>61-90</th><th>90+</th><th>Total</th></tr></thead><tbody><?php foreach($ar as $r): ?><tr><td><?php echo esc($r['snapshot_date']); ?></td><td><?php echo money($r['current_amount']); ?></td><td><?php echo money($r['days_1_30']); ?></td><td><?php echo money($r['days_31_60']); ?></td><td><?php echo money($r['days_61_90']); ?></td><td><?php echo money($r['days_over_90']); ?></td><td><?php echo money($r['total_amount']); ?></td></tr><?php endforeach; ?></tbody></table></div></div><div class="col-xl-6"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">AP Aging</h2><table class="table"><thead><tr><th>Date</th><th>Current</th><th>1-30</th><th>31-60</th><th>61-90</th><th>90+</th><th>Total</th></tr></thead><tbody><?php foreach($ap as $r): ?><tr><td><?php echo esc($r['snapshot_date']); ?></td><td><?php echo money($r['current_amount']); ?></td><td><?php echo money($r['days_1_30']); ?></td><td><?php echo money($r['days_31_60']); ?></td><td><?php echo money($r['days_61_90']); ?></td><td><?php echo money($r['days_over_90']); ?></td><td><?php echo money($r['total_amount']); ?></td></tr><?php endforeach; ?></tbody></table></div></div><div class="col-12"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Collection Tasks</h2><table class="table"><thead><tr><th>Task</th><th>Customer</th><th>Balance</th><th>Follow-up</th><th>Status</th></tr></thead><tbody><?php foreach($tasks as $t): ?><tr><td><strong><?php echo esc($t['task_number']); ?></strong><div class="small text-secondary">Invoice #<?php echo (int)$t['invoice_id']; ?></div></td><td><?php echo esc($t['customer_name']); ?><div class="small text-secondary"><?php echo esc($t['customer_email']); ?></div></td><td><?php echo money($t['balance_due']); ?></td><td><?php echo esc($t['next_followup_date']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($t['status'])); ?>"><?php echo esc($t['status']); ?></span></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

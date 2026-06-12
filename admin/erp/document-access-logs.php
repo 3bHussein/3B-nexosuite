@@ -1,0 +1,18 @@
+<?php
+$pageTitle='Document Access Logs';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('document_access_logs');
+$pdo=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{logDocumentAccess($pdo,(int)$_POST['document_library_id'],trim((string)$_POST['access_type']));flash('success','Document access log created.');}
+  catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'document-access-logs']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/document-access-logs.php');
+}
+$docs=$pdo->query('SELECT id,document_number,title FROM '.table('document_library').' ORDER BY created_at DESC LIMIT 200')->fetchAll();
+$logs=$pdo->query('SELECT l.*,d.document_number,d.title,u.email FROM '.table('document_access_logs').' l LEFT JOIN '.table('document_library').' d ON d.id=l.document_library_id LEFT JOIN '.table('users').' u ON u.id=l.user_id ORDER BY l.created_at DESC LIMIT 300')->fetchAll();
+$links=$pdo->query('SELECT lr.*,d.document_number,d.title,u.email linked_email FROM '.table('document_linked_records').' lr LEFT JOIN '.table('document_library').' d ON d.id=lr.document_library_id LEFT JOIN '.table('users').' u ON u.id=lr.linked_by ORDER BY lr.created_at DESC LIMIT 200')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Document Audit Trail</div><h2 class="h4 mb-1">Document Access Logs</h2><p class="text-secondary mb-0">Review document views, downloads, edits, approvals and linked-record activity.</p></div></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><h2 class="h5 mb-3">Manual Access Log</h2><select class="form-select mb-2" name="document_library_id"><?php foreach($docs as $d): ?><option value="<?php echo (int)$d['id']; ?>"><?php echo esc($d['document_number'].' · '.$d['title']); ?></option><?php endforeach; ?></select><select class="form-select mb-3" name="access_type"><option>view</option><option>download</option><option>edit</option><option>approve</option><option>link</option></select><button class="btn btn-brand w-100">Log Access</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive mb-4"><h2 class="h5 mb-3">Access Logs</h2><table class="table"><thead><tr><th>Document</th><th>User</th><th>Type</th><th>IP</th><th>Date</th></tr></thead><tbody><?php foreach($logs as $l): ?><tr><td><strong><?php echo esc($l['document_number']); ?></strong><div class="small text-secondary"><?php echo esc($l['title']); ?></div></td><td><?php echo esc($l['email']?:'System'); ?></td><td><?php echo esc($l['access_type']); ?></td><td><?php echo esc($l['ip_address']); ?></td><td><?php echo esc($l['created_at']); ?></td></tr><?php endforeach; ?></tbody></table></div><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Linked Records</h2><table class="table"><thead><tr><th>Document</th><th>Module</th><th>Entity</th><th>Linked By</th></tr></thead><tbody><?php foreach($links as $l): ?><tr><td><strong><?php echo esc($l['document_number']); ?></strong><div class="small text-secondary"><?php echo esc($l['title']); ?></div></td><td><?php echo esc($l['module_key']); ?></td><td><?php echo esc($l['entity_type'].' #'.$l['entity_id'].' '.$l['entity_number']); ?></td><td><?php echo esc($l['linked_email']); ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

@@ -1,0 +1,31 @@
+<?php
+$pageTitle='Balance Sheet';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('accounting');
+$pdo=getDB();
+$scopeOptions=scopeSelectOptions($pdo);
+$filters=requestScopeFilters();
+$asOf=trim((string)($_GET['as_of']??date('Y-m-d')));
+$join=' LEFT JOIN ' . table('journal_lines') . ' jl ON jl.account_id=a.id LEFT JOIN ' . table('journal_entries') . ' je ON je.id=jl.journal_entry_id AND je.status IN ("posted","reversed") AND je.entry_date<=? ';
+$params=[$asOf];
+$join.=selectedScopeCondition('je',$params,$filters,['company_id','branch_id']);
+$join.=scopeQueryCondition($pdo,'je',$params,false);
+$stmt=$pdo->prepare('SELECT a.id account_id,a.account_code,a.account_name,a.account_type,COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN jl.debit ELSE 0 END),0) debits,COALESCE(SUM(CASE WHEN je.id IS NOT NULL THEN jl.credit ELSE 0 END),0) credits FROM ' . table('accounts') . ' a '.$join.' WHERE a.account_type IN ("asset","liability","equity","revenue","expense") GROUP BY a.id ORDER BY a.account_code ASC');
+$stmt->execute($params);
+$rows=$stmt->fetchAll();
+$assets=[];$liabilities=[];$equity=[];$assetTotal=0;$liabilityTotal=0;$equityTotal=0;$currentResult=0;
+foreach($rows as $row){
+  if($row['account_type']==='asset'){$amount=(float)$row['debits']-(float)$row['credits'];$assets[]=$row+['amount'=>$amount];$assetTotal+=$amount;}
+  elseif($row['account_type']==='liability'){$amount=(float)$row['credits']-(float)$row['debits'];$liabilities[]=$row+['amount'=>$amount];$liabilityTotal+=$amount;}
+  elseif($row['account_type']==='equity'){$amount=(float)$row['credits']-(float)$row['debits'];$equity[]=$row+['amount'=>$amount];$equityTotal+=$amount;}
+  elseif($row['account_type']==='revenue'){$currentResult+=(float)$row['credits']-(float)$row['debits'];}
+  elseif($row['account_type']==='expense'){$currentResult-=(float)$row['debits']-(float)$row['credits'];}
+}
+$totalEquityWithResult=$equityTotal+$currentResult;
+$liabilityEquity=$liabilityTotal+$totalEquityWithResult;
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Accounting Report</div><h2 class="h4 mb-1">Balance Sheet</h2><p class="text-secondary mb-0">Assets compared with liabilities, equity, and current-period result.</p></div><form class="d-flex flex-wrap gap-2 align-items-end"><div><label class="form-label">Company</label><select class="form-select" name="company_id"><option value="0">All</option><?php foreach($scopeOptions['companies'] as $company): ?><option value="<?php echo (int)$company['id']; ?>" <?php echo (int)$filters['company_id']===(int)$company['id']?'selected':''; ?>><?php echo esc($company['company_code'].' · '.$company['company_name']); ?></option><?php endforeach; ?></select></div><div><label class="form-label">Branch</label><select class="form-select" name="branch_id"><option value="0">All</option><?php foreach($scopeOptions['branches'] as $branch): ?><option value="<?php echo (int)$branch['id']; ?>" <?php echo (int)$filters['branch_id']===(int)$branch['id']?'selected':''; ?>><?php echo esc($branch['branch_code'].' · '.$branch['branch_name']); ?></option><?php endforeach; ?></select></div><div><label class="form-label">As of</label><input class="form-control" type="date" name="as_of" value="<?php echo esc($asOf); ?>"></div><button class="btn btn-brand">Filter</button></form></div>
+<div class="row g-4 mb-4"><div class="col-md-4"><div class="card-admin p-4"><div class="erp-kicker">Assets</div><div class="metric-sm"><?php echo money($assetTotal); ?></div></div></div><div class="col-md-4"><div class="card-admin p-4"><div class="erp-kicker">Liabilities + Equity</div><div class="metric-sm"><?php echo money($liabilityEquity); ?></div></div></div><div class="col-md-4"><div class="card-admin p-4"><div class="erp-kicker">Difference</div><div class="metric-sm <?php echo abs($assetTotal-$liabilityEquity)<=0.01?'money-positive':'money-negative'; ?>"><?php echo money(abs($assetTotal-$liabilityEquity)); ?></div></div></div></div>
+<div class="row g-4"><div class="col-xl-4"><div class="table-wrap table-responsive"><h3 class="h5 mb-3">Assets</h3><table class="table"><tbody><?php foreach($assets as $row): ?><tr><td><a href="<?php echo esc(ADMIN_URL); ?>/erp/account-ledger.php?account_id=<?php echo (int)$row['account_id']; ?>"><?php echo esc($row['account_code'].' · '.$row['account_name']); ?></a></td><td class="text-end"><?php echo money($row['amount']); ?></td></tr><?php endforeach; ?><tr class="table-light fw-bold"><td>Total Assets</td><td class="text-end"><?php echo money($assetTotal); ?></td></tr></tbody></table></div></div><div class="col-xl-4"><div class="table-wrap table-responsive"><h3 class="h5 mb-3">Liabilities</h3><table class="table"><tbody><?php foreach($liabilities as $row): ?><tr><td><a href="<?php echo esc(ADMIN_URL); ?>/erp/account-ledger.php?account_id=<?php echo (int)$row['account_id']; ?>"><?php echo esc($row['account_code'].' · '.$row['account_name']); ?></a></td><td class="text-end"><?php echo money($row['amount']); ?></td></tr><?php endforeach; ?><tr class="table-light fw-bold"><td>Total Liabilities</td><td class="text-end"><?php echo money($liabilityTotal); ?></td></tr></tbody></table></div></div><div class="col-xl-4"><div class="table-wrap table-responsive"><h3 class="h5 mb-3">Equity</h3><table class="table"><tbody><?php foreach($equity as $row): ?><tr><td><a href="<?php echo esc(ADMIN_URL); ?>/erp/account-ledger.php?account_id=<?php echo (int)$row['account_id']; ?>"><?php echo esc($row['account_code'].' · '.$row['account_name']); ?></a></td><td class="text-end"><?php echo money($row['amount']); ?></td></tr><?php endforeach; ?><tr><td>Current Period Result</td><td class="text-end"><?php echo money($currentResult); ?></td></tr><tr class="table-light fw-bold"><td>Total Equity</td><td class="text-end"><?php echo money($totalEquityWithResult); ?></td></tr></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>
