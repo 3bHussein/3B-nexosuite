@@ -1,0 +1,7 @@
+<?php
+$pageTitle='Blog'; require_once dirname(__DIR__) . '/includes/functions.php'; adminGuard(); $pdo=getDB();
+if(isset($_GET['delete'])){$stmt=$pdo->prepare('DELETE FROM ' . table('blog_posts') . ' WHERE id=?');$stmt->execute([(int)$_GET['delete']]);flash('success','Post deleted.');redirect(ADMIN_URL.'/blog.php');}
+$posts=$pdo->query('SELECT * FROM ' . table('blog_posts') . ' ORDER BY created_at DESC')->fetchAll(); include __DIR__.'/header.php';
+?>
+<div class="d-flex justify-content-end mb-3"><a class="btn btn-brand" href="<?php echo esc(ADMIN_URL); ?>/blog-add.php">Add Post</a></div><div class="table-wrap table-responsive"><table class="table"><thead><tr><th>Title</th><th>Status</th><th>Date</th><th></th></tr></thead><tbody><?php foreach($posts as $post): ?><tr><td><?php echo esc($post['title']); ?></td><td><?php echo esc($post['status']); ?></td><td><?php echo esc(date('M d, Y',strtotime($post['created_at']))); ?></td><td class="text-end"><a class="btn btn-outline-primary btn-sm" href="<?php echo esc(ADMIN_URL); ?>/blog-edit.php?id=<?php echo (int)$post['id']; ?>">Edit</a> <a data-confirm="Delete blog post?" class="btn btn-outline-danger btn-sm" href="?delete=<?php echo (int)$post['id']; ?>">Delete</a></td></tr><?php endforeach; ?></tbody></table></div>
+<?php include __DIR__.'/footer.php'; ?>
