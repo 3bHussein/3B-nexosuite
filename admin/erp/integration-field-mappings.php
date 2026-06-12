@@ -1,0 +1,16 @@
+<?php
+$pageTitle='Integration Field Mappings';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('integration_field_mappings');
+$pdo=getDB();$connections=$pdo->query('SELECT c.*,a.app_name FROM '.table('integration_connections').' c LEFT JOIN '.table('integration_apps').' a ON a.id=c.integration_app_id ORDER BY c.connection_name')->fetchAll();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{createIntegrationFieldMapping($pdo,(int)($_POST['integration_connection_id']??0)?:null,trim((string)$_POST['source_module']),trim((string)$_POST['target_module']),trim((string)$_POST['source_field']),trim((string)$_POST['target_field']),trim((string)$_POST['transform_rule']),(int)($_POST['required_field']??0));flash('success','Field mapping created.');}
+  catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'integration-field-mappings']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/integration-field-mappings.php');
+}
+$rows=$pdo->query('SELECT m.*,c.connection_name FROM '.table('integration_field_mappings').' m LEFT JOIN '.table('integration_connections').' c ON c.id=m.integration_connection_id ORDER BY m.created_at DESC LIMIT 250')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Data Mapping</div><h2 class="h4 mb-1">Integration Field Mappings</h2><p class="text-secondary mb-0">Map ERP fields to external API fields for products, orders, customers, invoices and accounting exports.</p></div></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><h2 class="h5 mb-3">Create Mapping</h2><select class="form-select mb-2" name="integration_connection_id"><option value="">Global mapping</option><?php foreach($connections as $c): ?><option value="<?php echo (int)$c['id']; ?>"><?php echo esc($c['connection_name'].' · '.$c['app_name']); ?></option><?php endforeach; ?></select><input class="form-control mb-2" name="source_module" placeholder="products"><input class="form-control mb-2" name="target_module" placeholder="woocommerce_products"><input class="form-control mb-2" name="source_field" placeholder="sku"><input class="form-control mb-2" name="target_field" placeholder="sku"><input class="form-control mb-2" name="transform_rule" placeholder="trim|uppercase"><select class="form-select mb-3" name="required_field"><option value="0">Optional</option><option value="1">Required</option></select><button class="btn btn-brand w-100">Create Mapping</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive"><table class="table"><thead><tr><th>Mapping</th><th>Connection</th><th>Source</th><th>Target</th><th>Status</th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><strong><?php echo esc($r['mapping_number']); ?></strong></td><td><?php echo esc($r['connection_name']?:'Global'); ?></td><td><?php echo esc($r['source_module'].'.'.$r['source_field']); ?></td><td><?php echo esc($r['target_module'].'.'.$r['target_field']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($r['status'])); ?>"><?php echo esc($r['status']); ?></span></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

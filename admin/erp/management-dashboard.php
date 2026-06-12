@@ -1,0 +1,14 @@
+<?php
+$pageTitle='Management Dashboard';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('management_dashboards');
+$pdo=getDB();
+$dashboard=$pdo->query('SELECT * FROM '.table('management_dashboards').' WHERE active=1 ORDER BY is_default DESC,id ASC LIMIT 1')->fetch();
+$widgets=[];
+if($dashboard){$stmt=$pdo->prepare('SELECT * FROM '.table('management_dashboard_widgets').' WHERE management_dashboard_id=? AND active=1 ORDER BY position_y,position_x,id');$stmt->execute([(int)$dashboard['id']]);$widgets=$stmt->fetchAll();}
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Executive View</div><h2 class="h4 mb-1"><?php echo esc($dashboard['dashboard_name']??'Management Dashboard'); ?></h2><p class="text-secondary mb-0">Live KPI widgets from sales, finance, inventory, CRM, approvals, and payroll.</p></div><a class="btn btn-outline-primary" href="<?php echo esc(ADMIN_URL); ?>/erp/kpi-builder.php"><?php echo t('KPI Builder', 'منشئ مؤشرات الأداء'); ?></a></div>
+<div class="row g-4"><?php foreach($widgets as $widget): $value=kpiMetricValue($pdo,(string)$widget['source_key']); ?><div class="col-md-3"><div class="card-admin p-4 h-100"><div class="erp-kicker"><?php echo esc($widget['widget_title']); ?></div><div class="metric-sm"><?php echo number_format((float)$value,2); ?></div><div class="small text-secondary"><?php echo esc($widget['source_key']); ?></div></div></div><?php endforeach; ?><?php if(!$widgets): ?><div class="col-12"><div class="alert alert-warning">No dashboard widgets configured yet.</div></div><?php endif; ?></div>
+<div class="row g-4 mt-1"><div class="col-xl-6"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Sales Snapshot</h2><table class="table"><tbody><tr><td>Revenue MTD</td><td class="text-end"><?php echo money(kpiMetricValue($pdo,'revenue_mtd')); ?></td></tr><tr><td>Orders MTD</td><td class="text-end"><?php echo number_format(kpiMetricValue($pdo,'orders_mtd'),0); ?></td></tr><tr><td>Open Pipeline</td><td class="text-end"><?php echo money(kpiMetricValue($pdo,'open_pipeline')); ?></td></tr></tbody></table></div></div><div class="col-xl-6"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Control Snapshot</h2><table class="table"><tbody><tr><td>Open Receivables</td><td class="text-end"><?php echo money(kpiMetricValue($pdo,'open_ar')); ?></td></tr><tr><td>Low Stock Items</td><td class="text-end"><?php echo number_format(kpiMetricValue($pdo,'low_stock'),0); ?></td></tr><tr><td>Open Approvals</td><td class="text-end"><?php echo number_format(kpiMetricValue($pdo,'open_approvals'),0); ?></td></tr></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

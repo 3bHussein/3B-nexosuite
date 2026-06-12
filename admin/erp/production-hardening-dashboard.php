@@ -1,0 +1,26 @@
+<?php
+$pageTitle='Production Hardening Dashboard';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('production_hardening_dashboard');
+$pdo=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    $action=(string)($_POST['action']??'scan');
+    if($action==='scan'){$result=p34RunRepairScan($pdo,false);flash('success',$result['summary']);}
+    elseif($action==='repair'){$result=p34RunRepairScan($pdo,true);flash('success',$result['summary']);}
+    elseif($action==='backup'){p34CreateUpgradeBackup($pdo,'manual','Manual production hardening backup.');flash('success','Backup placeholder created.');}
+    elseif($action==='checklist'){p34CreateReleaseChecklist($pdo,trim((string)$_POST['release_name']),trim((string)$_POST['release_version']));flash('success','Release checklist created.');}
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'production-hardening-dashboard']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/production-hardening-dashboard.php');
+}
+$schemaLatest=$pdo->query('SELECT * FROM '.table('production_schema_checks').' ORDER BY created_at DESC LIMIT 1')->fetch();
+$stats=['open_errors'=>(int)$pdo->query('SELECT COUNT(*) FROM '.table('system_error_logs').' WHERE status="open"')->fetchColumn(),'repair_runs'=>(int)$pdo->query('SELECT COUNT(*) FROM '.table('production_repair_runs'))->fetchColumn(),'backups'=>(int)$pdo->query('SELECT COUNT(*) FROM '.table('production_upgrade_backups'))->fetchColumn(),'release_items_open'=>(int)$pdo->query('SELECT COUNT(*) FROM '.table('production_release_checklist_items').' WHERE status="open"')->fetchColumn()];
+$score=100;if($schemaLatest){$score-=min(40,(int)$schemaLatest['missing_tables']*10);$score-=min(30,(int)$schemaLatest['missing_columns']*3);}$score-=min(20,$stats['open_errors']*2);$score=max(0,$score);
+$runs=$pdo->query('SELECT * FROM '.table('production_repair_runs').' ORDER BY created_at DESC LIMIT 8')->fetchAll();
+$events=$pdo->query('SELECT * FROM '.table('production_installer_events').' ORDER BY created_at DESC LIMIT 8')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Production Readiness</div><h2 class="h4 mb-1">Production Hardening Dashboard</h2><p class="text-secondary mb-0">Safe upgrade, repair, schema, backup, demo-data and release-readiness control center.</p></div><div class="d-flex gap-2"><form method="post"><button name="action" value="scan" class="btn btn-outline-primary">Run Scan</button></form><form method="post"><button name="action" value="repair" class="btn btn-brand">Run Safe Repair</button></form></div></div>
+<div class="row g-4 mb-4"><div class="col-md-3"><div class="card-admin p-4"><div class="erp-kicker">Readiness Score</div><div class="metric-sm"><?php echo (int)$score; ?>%</div></div></div><?php foreach($stats as $k=>$v): ?><div class="col-md-3"><div class="card-admin p-4"><div class="erp-kicker"><?php echo esc(ucwords(str_replace('_',' ',$k))); ?></div><div class="metric-sm"><?php echo (int)$v; ?></div></div></div><?php endforeach; ?></div>
+<div class="row g-4"><div class="col-xl-4"><div class="card-admin p-4 mb-4"><h2 class="h5">Production Actions</h2><form method="post" class="mb-2"><button name="action" value="backup" class="btn btn-outline-primary w-100">Create Backup Placeholder</button></form><form method="post"><input class="form-control mb-2" name="release_name" value="Production Release"><input class="form-control mb-2" name="release_version" value="<?php echo esc(INSTALLER_VERSION); ?>"><button name="action" value="checklist" class="btn btn-brand w-100">Create Release Checklist</button></form></div><div class="card-admin p-4"><h2 class="h5">Latest Schema Check</h2><?php if($schemaLatest): ?><p class="mb-1">Tables checked: <?php echo (int)$schemaLatest['tables_checked']; ?></p><p class="mb-1">Missing tables: <?php echo (int)$schemaLatest['missing_tables']; ?></p><p class="mb-0">Missing columns: <?php echo (int)$schemaLatest['missing_columns']; ?></p><?php else: ?><p class="text-secondary mb-0">No schema check yet.</p><?php endif; ?></div></div><div class="col-xl-4"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Repair Runs</h2><table class="table"><tbody><?php foreach($runs as $r): ?><tr><td><strong><?php echo esc($r['run_number']); ?></strong><div class="small text-secondary"><?php echo esc($r['summary']); ?></div></td><td><span class="badge bg-<?php echo esc(statusTone($r['status'])); ?>"><?php echo esc($r['status']); ?></span></td></tr><?php endforeach; ?></tbody></table></div></div><div class="col-xl-4"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Installer Events</h2><table class="table"><tbody><?php foreach($events as $e): ?><tr><td><strong><?php echo esc($e['event_number']); ?></strong><div class="small text-secondary"><?php echo esc($e['message']); ?></div></td><td><span class="badge bg-<?php echo esc(statusTone($e['severity'])); ?>"><?php echo esc($e['severity']); ?></span></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

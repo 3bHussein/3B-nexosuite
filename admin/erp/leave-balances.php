@@ -1,0 +1,19 @@
+<?php
+$pageTitle='Leave Balances';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('leave_balances');
+$pdo=getDB();$employees=$pdo->query('SELECT * FROM '.table('employees').' WHERE status="active" ORDER BY first_name,last_name')->fetchAll();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    $employeeId=(int)$_POST['employee_id'];$type=trim((string)$_POST['leave_type']);$year=(int)$_POST['year_no'];$opening=max(0,(float)$_POST['opening_balance']);$accrued=max(0,(float)$_POST['accrued_days']);$used=max(0,(float)$_POST['used_days']);$remaining=$opening+$accrued-$used;
+    $pdo->prepare('INSERT INTO '.table('employee_leave_balances').' (employee_id,leave_type,opening_balance,accrued_days,used_days,remaining_days,year_no,status) VALUES (?,?,?,?,?,?,?,"active") ON DUPLICATE KEY UPDATE opening_balance=VALUES(opening_balance),accrued_days=VALUES(accrued_days),used_days=VALUES(used_days),remaining_days=VALUES(remaining_days),status="active"')->execute([$employeeId,$type,$opening,$accrued,$used,$remaining,$year]);
+    flash('success','Leave balance saved.');
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'leave-balances']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/leave-balances.php');
+}
+$rows=$pdo->query('SELECT b.*,CONCAT(e.first_name," ",e.last_name) employee_name,e.employee_code FROM '.table('employee_leave_balances').' b LEFT JOIN '.table('employees').' e ON e.id=b.employee_id ORDER BY b.year_no DESC,e.first_name')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Leave Control</div><h2 class="h4 mb-1">Leave Balances</h2><p class="text-secondary mb-0">Maintain annual, sick, emergency and unpaid leave balances by year.</p></div></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><h2 class="h5 mb-3">Set Balance</h2><select class="form-select mb-2" name="employee_id"><?php foreach($employees as $e): ?><option value="<?php echo (int)$e['id']; ?>"><?php echo esc($e['employee_code'].' · '.$e['first_name'].' '.$e['last_name']); ?></option><?php endforeach; ?></select><select class="form-select mb-2" name="leave_type"><option>Annual Leave</option><option>Sick Leave</option><option>Emergency Leave</option><option>Unpaid Leave</option></select><input class="form-control mb-2" type="number" name="year_no" value="<?php echo date('Y'); ?>"><input class="form-control mb-2" type="number" step="0.01" name="opening_balance" placeholder="Opening"><input class="form-control mb-2" type="number" step="0.01" name="accrued_days" value="<?php echo esc(setting('default_annual_leave_days','30')); ?>"><input class="form-control mb-3" type="number" step="0.01" name="used_days" placeholder="Used"><button class="btn btn-brand w-100">Save Balance</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive"><table class="table"><thead><tr><th>Employee</th><th>Type</th><th>Year</th><th>Opening</th><th>Accrued</th><th>Used</th><th>Remaining</th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><?php echo esc($r['employee_code'].' · '.$r['employee_name']); ?></td><td><?php echo esc($r['leave_type']); ?></td><td><?php echo (int)$r['year_no']; ?></td><td><?php echo number_format((float)$r['opening_balance'],2); ?></td><td><?php echo number_format((float)$r['accrued_days'],2); ?></td><td><?php echo number_format((float)$r['used_days'],2); ?></td><td><strong><?php echo number_format((float)$r['remaining_days'],2); ?></strong></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

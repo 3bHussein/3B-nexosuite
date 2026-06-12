@@ -1,0 +1,17 @@
+<?php
+$pageTitle='Metric Library';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('metric_library');
+$pdo=getDB();
+$sources=['revenue_mtd'=>'Revenue MTD','cash_collected_mtd'=>'Cash Collected MTD','open_ar'=>'Open AR','open_ap'=>'Open AP','inventory_value'=>'Inventory Value','open_pipeline'=>'Open Sales Pipeline','gross_margin_service'=>'Service Gross Margin','budget_variance'=>'Budget Variance'];
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{createBiMetric($pdo,$_POST);flash('success','BI metric created.');}
+  catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'metric-library']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/metric-library.php');
+}
+$rows=$pdo->query('SELECT * FROM '.table('bi_metric_library').' ORDER BY metric_group,metric_name LIMIT 200')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Metric Governance</div><h2 class="h4 mb-1">BI Metric Library</h2><p class="text-secondary mb-0">Define reusable metrics that can feed KPI dashboards, alerts, and storyboards.</p></div></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><h2 class="h5 mb-3">Create Metric</h2><input class="form-control mb-2" name="metric_code" placeholder="Auto or REVENUE_MTD"><input class="form-control mb-2" name="metric_name" placeholder="Metric name"><input class="form-control mb-2" name="metric_group" value="Executive"><select class="form-select mb-2" name="metric_source"><?php foreach($sources as $k=>$v): ?><option value="<?php echo esc($k); ?>"><?php echo esc($v); ?></option><?php endforeach; ?></select><select class="form-select mb-2" name="calculation_type"><option>sum</option><option>count</option><option>average</option><option>ratio</option></select><input class="form-control mb-2" name="unit_label" placeholder="AED / % / count"><input class="form-control mb-2" type="number" step="0.01" name="target_value" placeholder="Target"><input class="form-control mb-2" type="number" step="0.01" name="warning_value" placeholder="Warning"><textarea class="form-control mb-3" name="filter_json" rows="3">{}</textarea><button class="btn btn-brand w-100">Create Metric</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive"><table class="table align-middle"><thead><tr><th>Metric</th><th>Group</th><th>Source</th><th>Current</th><th>Target</th><th>Status</th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><strong><?php echo esc($r['metric_code']); ?></strong><div class="small text-secondary"><?php echo esc($r['metric_name']); ?></div></td><td><?php echo esc($r['metric_group']); ?></td><td><?php echo esc($r['metric_source']); ?></td><td><?php echo number_format(biMetricLibraryValue($pdo,(string)$r['metric_source']),2).' '.esc($r['unit_label']); ?></td><td><?php echo number_format((float)$r['target_value'],2); ?></td><td><span class="badge bg-<?php echo $r['active']?'success':'secondary'; ?>"><?php echo $r['active']?'active':'inactive'; ?></span></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

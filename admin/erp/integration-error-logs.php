@@ -1,0 +1,19 @@
+<?php
+$pageTitle='Integration Error Logs';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('integration_error_logs');
+$pdo=getDB();$connections=$pdo->query('SELECT c.*,a.app_name FROM '.table('integration_connections').' c LEFT JOIN '.table('integration_apps').' a ON a.id=c.integration_app_id ORDER BY c.connection_name')->fetchAll();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{
+    $action=(string)($_POST['action']??'create');
+    if($action==='resolve'){$pdo->prepare('UPDATE '.table('integration_error_logs').' SET status="resolved",resolved_at=NOW() WHERE id=?')->execute([(int)$_POST['id']]);flash('success','Integration error resolved.');}
+    else{recordIntegrationError($pdo,(int)($_POST['integration_connection_id']??0)?:null,null,trim((string)$_POST['error_type']),trim((string)$_POST['error_message']),trim((string)$_POST['severity']),trim((string)$_POST['payload_json']));flash('success','Integration error logged.');}
+  }catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'integration-error-logs']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/integration-error-logs.php');
+}
+$rows=$pdo->query('SELECT e.*,c.connection_name FROM '.table('integration_error_logs').' e LEFT JOIN '.table('integration_connections').' c ON c.id=e.integration_connection_id ORDER BY FIELD(e.status,"open","resolved"),e.created_at DESC LIMIT 250')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Integration Observability</div><h2 class="h4 mb-1">Integration Error Logs</h2><p class="text-secondary mb-0">Track sync failures, API payload errors, webhook problems and connector exceptions.</p></div></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><h2 class="h5 mb-3">Log Error</h2><select class="form-select mb-2" name="integration_connection_id"><option value="">No connection</option><?php foreach($connections as $c): ?><option value="<?php echo (int)$c['id']; ?>"><?php echo esc($c['connection_name'].' · '.$c['app_name']); ?></option><?php endforeach; ?></select><input class="form-control mb-2" name="error_type" placeholder="auth_failed / mapping_error"><select class="form-select mb-2" name="severity"><option>info</option><option selected>warning</option><option>danger</option><option>critical</option></select><textarea class="form-control mb-2" name="error_message" rows="3" placeholder="Message"></textarea><textarea class="form-control mb-3" name="payload_json" rows="3">{}</textarea><button class="btn btn-brand w-100">Log Error</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive"><table class="table align-middle"><thead><tr><th>Error</th><th>Connection</th><th>Severity</th><th>Message</th><th>Status</th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><strong><?php echo esc($r['error_number']); ?></strong><div class="small text-secondary"><?php echo esc($r['error_type'].' · '.$r['created_at']); ?></div></td><td><?php echo esc($r['connection_name']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($r['severity'])); ?>"><?php echo esc($r['severity']); ?></span></td><td><?php echo esc($r['error_message']); ?></td><td><?php if($r['status']==='open'): ?><form method="post"><input type="hidden" name="action" value="resolve"><input type="hidden" name="id" value="<?php echo (int)$r['id']; ?>"><button class="btn btn-sm btn-success">Resolve</button></form><?php else: ?><span class="badge bg-success">resolved</span><?php endif; ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

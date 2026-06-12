@@ -1,0 +1,19 @@
+<?php
+$pageTitle='Report Export Center';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('report_exports');
+$pdo=getDB();
+$reportTypes=reportTypeOptions();
+$savedReportId=(int)($_GET['saved_report_id']??0);
+$type=trim((string)($_GET['type']??'sales_pipeline'));
+if($savedReportId>0){$stmt=$pdo->prepare('SELECT * FROM '.table('saved_reports').' WHERE id=? LIMIT 1');$stmt->execute([$savedReportId]);$saved=$stmt->fetch();if($saved){$type=(string)$saved['report_type'];}}
+if(isset($_GET['export'])){$rows=reportRows($pdo,$type,['limit'=>(int)setting('report_export_max_rows','5000')]);$filename='report-'.$type.'-'.date('Ymd-His').'.csv';createReportExportRecord($pdo,$savedReportId?:null,$type,'csv',$filename,count($rows));writeCsvResponse($filename,$rows);}
+$preview=reportRows($pdo,$type,['limit'=>50]);
+$exports=$pdo->query('SELECT e.*,r.report_code,r.report_name,u.email created_by_email FROM '.table('report_export_files').' e LEFT JOIN '.table('saved_reports').' r ON r.id=e.saved_report_id LEFT JOIN '.table('users').' u ON u.id=e.created_by ORDER BY e.created_at DESC LIMIT 100')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">CSV / Excel / PDF Print</div><h2 class="h4 mb-1">Report Export Center</h2><p class="text-secondary mb-0">Preview report data and export CSV files compatible with Excel. Use browser print for PDF output.</p></div><button class="btn btn-outline-secondary" onclick="window.print()">Print / Save PDF</button></div>
+<div class="card-admin p-3 mb-4"><form class="d-flex flex-wrap gap-2 align-items-end"><div><label class="form-label">Report Type</label><select class="form-select" name="type"><?php foreach($reportTypes as $key=>$label): ?><option value="<?php echo esc($key); ?>" <?php echo $type===$key?'selected':''; ?>><?php echo esc($label); ?></option><?php endforeach; ?></select></div><button class="btn btn-brand">Preview</button><a class="btn btn-success" href="<?php echo esc(ADMIN_URL); ?>/erp/report-export-center.php?export=1&type=<?php echo urlencode($type); ?>">Export CSV</a></form></div>
+<div class="table-wrap table-responsive mb-4"><div class="table-toolbar"><div><div class="erp-kicker">Preview</div><h2 class="h5 mb-0"><?php echo esc($reportTypes[$type]??$type); ?></h2></div></div><table class="table align-middle"><thead><tr><?php foreach(array_keys($preview[0]??['message'=>'No data']) as $col): ?><th><?php echo esc($col); ?></th><?php endforeach; ?></tr></thead><tbody><?php foreach($preview as $row): ?><tr><?php foreach($row as $val): ?><td><?php echo esc((string)$val); ?></td><?php endforeach; ?></tr><?php endforeach; ?><?php if(!$preview): ?><tr><td class="text-secondary">No rows available.</td></tr><?php endif; ?></tbody></table></div>
+<div class="table-wrap table-responsive"><h2 class="h5 mb-3">Export History</h2><table class="table"><thead><tr><th>Export</th><th>Report</th><th>Format</th><th>Rows</th><th>Created</th></tr></thead><tbody><?php foreach($exports as $export): ?><tr><td><strong><?php echo esc($export['export_number']); ?></strong><div class="small text-secondary"><?php echo esc($export['file_name']); ?></div></td><td><?php echo esc($export['report_name']?:$export['report_type']); ?></td><td><?php echo esc($export['format']); ?></td><td><?php echo (int)$export['row_count']; ?></td><td><?php echo esc($export['created_at']); ?></td></tr><?php endforeach; ?><?php if(!$exports): ?><tr><td colspan="5" class="text-secondary">No exports yet.</td></tr><?php endif; ?></tbody></table></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>

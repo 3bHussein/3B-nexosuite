@@ -1,0 +1,17 @@
+<?php
+$pageTitle='Login Session Monitor';
+require_once dirname(__DIR__,2) . '/includes/functions.php';
+erpGuard('login_session_monitor');
+$pdo=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{recordLoginSession($pdo,(int)($_POST['user_id']??0)?:null,trim((string)$_POST['email']),trim((string)$_POST['login_status']),max(0,(float)$_POST['risk_score']),trim((string)$_POST['notes']));flash('success','Login/session log created.');}
+  catch(Throwable $e){recordSystemError($pdo,$e,['page'=>'login-session-monitor']);flash('error',$e->getMessage());}
+  redirect(ADMIN_URL.'/erp/login-session-monitor.php');
+}
+$rows=$pdo->query('SELECT l.*,u.email user_email FROM '.table('login_session_logs').' l LEFT JOIN '.table('users').' u ON u.id=l.user_id ORDER BY l.created_at DESC LIMIT 250')->fetchAll();
+$suspicious=$pdo->query('SELECT * FROM '.table('suspicious_activity_events').' ORDER BY created_at DESC LIMIT 80')->fetchAll();
+include dirname(__DIR__).'/header.php';
+?>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"><div><div class="erp-kicker">Access Monitoring</div><h2 class="h4 mb-1">Login Session Monitor</h2><p class="text-secondary mb-0">Track login status, IP address, device/user-agent and risk score foundation.</p></div></div>
+<div class="row g-4"><div class="col-xl-4"><form method="post" class="card-admin p-4"><h2 class="h5 mb-3">Manual Session Log</h2><input class="form-control mb-2" type="number" name="user_id" placeholder="User ID optional"><input class="form-control mb-2" name="email" placeholder="Email"><select class="form-select mb-2" name="login_status"><option>success</option><option>failed</option><option>blocked</option></select><input class="form-control mb-2" type="number" step="0.01" name="risk_score" placeholder="Risk score"><textarea class="form-control mb-3" name="notes" rows="3"></textarea><button class="btn btn-brand w-100">Create Log</button></form></div><div class="col-xl-8"><div class="table-wrap table-responsive"><table class="table"><thead><tr><th>Session</th><th>User</th><th>IP</th><th>Status</th><th>Risk</th></tr></thead><tbody><?php foreach($rows as $r): ?><tr><td><strong><?php echo esc($r['session_number']); ?></strong><div class="small text-secondary"><?php echo esc($r['login_at']?:$r['created_at']); ?></div></td><td><?php echo esc($r['email']?:$r['user_email']); ?><div class="small text-secondary"><?php echo esc($r['user_agent']); ?></div></td><td><?php echo esc($r['ip_address']); ?></td><td><span class="badge bg-<?php echo esc(statusTone($r['login_status'])); ?>"><?php echo esc($r['login_status']); ?></span></td><td><?php echo number_format((float)$r['risk_score'],2); ?></td></tr><?php endforeach; ?></tbody></table></div></div><div class="col-12"><div class="table-wrap table-responsive"><h2 class="h5 mb-3">Suspicious Activity Events</h2><table class="table"><thead><tr><th>Event</th><th>IP</th><th>Risk</th><th>Description</th></tr></thead><tbody><?php foreach($suspicious as $s): ?><tr><td><strong><?php echo esc($s['event_number']); ?></strong><div class="small text-secondary"><?php echo esc($s['event_type']); ?></div></td><td><?php echo esc($s['ip_address']); ?></td><td><?php echo number_format((float)$s['risk_score'],2); ?></td><td><?php echo esc($s['description']); ?></td></tr><?php endforeach; ?></tbody></table></div></div></div>
+<?php include dirname(__DIR__).'/footer.php'; ?>
