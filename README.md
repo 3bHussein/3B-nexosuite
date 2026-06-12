@@ -78,7 +78,7 @@ Use the demo account below for customer testing.
 | Field | Value |
 |---|---|
 | Customer Email | `3B-nexosuite@gmail.com` |
-| Password | `Demo password available on request` |
+| Password | `3B-nexosuite@gmail.com` |
 | Login Page | `your-domain.com/customer/login.php` |
 
 For private customer delivery only, share the password through a secure message, not inside the public README.
